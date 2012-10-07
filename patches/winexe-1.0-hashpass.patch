@@ -1,0 +1,171 @@
+diff -Naur winexe-1.00.orig/libcli/auth/smbencrypt.c winexe-1.00-patched/libcli/auth/smbencrypt.c
+--- winexe-1.00.orig/libcli/auth/smbencrypt.c	2011-06-15 18:56:58.000000000 -0400
++++ winexe-1.00-patched/libcli/auth/smbencrypt.c	2012-04-28 00:11:55.916839496 -0400
+@@ -27,6 +27,10 @@
+ #include "../lib/crypto/crypto.h"
+ #include "../libcli/auth/libcli_auth.h"
+ #include "../librpc/gen_ndr/ntlmssp.h"
++#include "pstring.h"
++
++#define SMB_HASH_LM 1
++#define SMB_HASH_NTLM 2
+ 
+ void SMBencrypt_hash(const uint8_t lm_hash[16], const uint8_t *c8, uint8_t p24[24])
+ {
+@@ -44,6 +48,52 @@
+ 	dump_data(100, p24, 24);
+ #endif
+ }
++void E_set_hash(int type, unsigned char hash[16])
++{
++ uint l;
++ pstring p;
++ int i, j;
++ char HexChar;
++ int HexValue;
++
++ if ( (getenv("SMBHASH")) && (strlen(getenv("SMBHASH")) == 65) )
++ {
++   pstrcpy(p, getenv("SMBHASH"));
++
++   for (i=0; i<16; i++) {
++     HexValue = 0x0;
++     for (j=0; j<2; j++) {
++       if (type == SMB_HASH_LM)
++         HexChar = (char)p[2*i+j];
++       else
++         HexChar = (char)p[2*i+j+33];
++
++       if (HexChar > 0x39)
++         HexChar = HexChar | 0x20;  /* convert upper case to lower */
++
++       if (!(((HexChar >= 0x30) && (HexChar <= 0x39))||   /* 0 - 9 */
++          ((HexChar >= 0x61) && (HexChar <= 0x66)))) {    /* a - f */
++         fprintf(stderr, "Error invalid char (%c) for hash.\n", HexChar);
++         exit(1);
++       }
++
++       HexChar -= 0x30;
++       if (HexChar > 0x09)  /* HexChar is "a" - "f" */
++         HexChar -= 0x27;
++
++       HexValue = (HexValue << 4) | (char)HexChar;
++     }
++     hash[i] = (unsigned char)HexValue;
++   }
++ }
++ else
++ {
++   fprintf(stderr, "Error reading SMB HASH.\n");
++   fprintf(stderr, "\tEx: export SMBHASH=\"_LM_HASH_:_NTLM_HASH_\"\n");
++   exit(1);
++ }
++}
++
+ 
+ /*
+    This implements the X/Open SMB password encryption
+@@ -74,19 +124,24 @@
+ 	size_t len;
+ 	smb_ucs2_t *wpwd;
+ 	bool ret;
++	  /* Support for using NTLM hashes -- jmk@foofus.net 03/2007 */
++	if ( getenv("SMBHASH") ) {
++		fprintf(stderr, "HASH PASS: Substituting user supplied NTLM HASH...\n");
++		E_set_hash(SMB_HASH_NTLM, p16);
++	} else {
++		ret = push_ucs2_talloc(NULL, &wpwd, passwd, &len);
++		if (!ret || len < 2) {
++			/* We don't want to return fixed data, as most callers
++			 * don't check */
++			mdfour(p16, (const uint8_t *)passwd, strlen(passwd));
++			return false;
++		}
+ 
+-	ret = push_ucs2_talloc(NULL, &wpwd, passwd, &len);
+-	if (!ret || len < 2) {
+-		/* We don't want to return fixed data, as most callers
+-		 * don't check */
+-		mdfour(p16, (const uint8_t *)passwd, strlen(passwd));
+-		return false;
+-	}
+-
+-	len -= 2;
+-	mdfour(p16, (const uint8_t *)wpwd, len);
++		len -= 2;
++		mdfour(p16, (const uint8_t *)wpwd, len);
+ 
+-	talloc_free(wpwd);
++		talloc_free(wpwd);
++	}
+ 	return true;
+ }
+ 
+@@ -123,6 +178,12 @@
+ 	bool ret = true;
+ 	char dospwd[256];
+ 	ZERO_STRUCT(dospwd);
++	  /* Support for using LM hashes -- jmk@foofus.net 10/2006 */
++	if ( getenv("SMBHASH") ) {
++		fprintf(stderr, "HASH PASS: Substituting user supplied LM HASH...\n");
++		E_set_hash(SMB_HASH_LM, p16);
++	} else {
++
+ 
+ 	/* Password must be converted to DOS charset - null terminated, uppercase. */
+ 	push_string(dospwd, passwd, sizeof(dospwd), STR_ASCII|STR_UPPER|STR_TERMINATE);
+@@ -135,7 +196,7 @@
+ 	}
+ 
+ 	ZERO_STRUCT(dospwd);
+-
++	}
+ 	return ret;
+ }
+ 
+diff -Naur winexe-1.00.orig/source4/include/pstring.h winexe-1.00-patched/source4/include/pstring.h
+--- winexe-1.00.orig/source4/include/pstring.h	1969-12-31 19:00:00.000000000 -0500
++++ winexe-1.00-patched/source4/include/pstring.h	2012-04-28 00:11:09.188839898 -0400
+@@ -0,0 +1,42 @@
++/* 
++   samba -- Unix SMB/CIFS implementation.
++
++   ugly string types from Samba3. Will be removed 
++   with glee when we finally don't use them.
++   
++   Copyright (C) Andrew Tridgell              1992-2000
++   Copyright (C) John H Terpstra              1996-2000
++   Copyright (C) Luke Kenneth Casson Leighton 1996-2000
++   Copyright (C) Paul Ashton                  1998-2000
++   Copyright (C) Martin Pool		      2002
++   
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 2 of the License, or
++   (at your option) any later version.
++   
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++   
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++*/
++
++#ifndef _PSTRING
++#define _PSTRING
++
++#define PSTRING_LEN 1024
++#define FSTRING_LEN 256
++
++typedef char pstring[PSTRING_LEN];
++typedef char fstring[FSTRING_LEN];
++
++#define pstrcpy(d,s) safe_strcpy((d), (s),sizeof(pstring)-1)
++#define pstrcat(d,s) safe_strcat((d), (s),sizeof(pstring)-1)
++#define fstrcpy(d,s) safe_strcpy((d),(s),sizeof(fstring)-1)
++#define fstrcat(d,s) safe_strcat((d),(s),sizeof(fstring)-1)
++
++#endif

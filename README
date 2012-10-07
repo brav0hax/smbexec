@@ -1,0 +1,34 @@
+************************************************************
+		      	smbexec
+	A rapid psexec style attack with samba tools
+      Original Concept and Script by PureHate & Brav0Hax
+              Codename - Diamond in the Rough
+             Gonna pha-q up - PurpleTeam Smash!
+************************************************************
+
+Written because we got sick of Metasploit PSExec getting popped
+
+Special thanks to Carnal0wnage who's blog inspired us to go this route.
+http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+ 
+Includes
+- smbexec.sh
+- installer.sh
+- patches to compile binaries
+- source for samba-3.6.6 and winexe-1.00
+
+Just run the installer and you should be good to go! If not email me....jbrav.hax@gmail.com
+
+Credit where credit is due:
+* smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
+	- Patch updated for Samba 3.6.6 by exfil (Emilio Escobar)
+* vanish.sh - Original concept Astr0baby stable version edits Vanish3r -> http://www.securitylabs.in/2011/12/easy-bypass-av-and-firewall.html
+* www.samba.org
+* winexe - ahajda -> http://sourceforge.net/users/ahajda
+* Metasploit - www.metasploit.com (Thank you HD and team!)
+* Nmap - nmap.org (Thank you Fydor!)
+* Creddump - Brendan Dolan-Gavitt - http://code.google.com/p/creddump/
+* NTDSXtract - Csaba Barta - http://www.ntdsxtract.com/
+* libesedb - Joachim Metz - http://sourceforge.net/projects/libesedb/
+
+Happy Hunting!
