@@ -197,10 +197,10 @@ if [ ! -e /tmp/smbexec/ ]; then mkdir /tmp/smbexec/; fi
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
 	if [ $PWD/smbexec == $smbexecpath/smbexec ]; then 
-		echo "Can't install into the folder..... from the folder.  Choose a different path.  :P"
+		echo "Can't install into the folder.....from the folder.  Choose a different path."
 		unset smbexecpath
 		sleep 5
-		f_mainmenu
+		f_install
 	else
 		# CD out of folder, mv folder to specified path and create symbolic link
 		cd ..
@@ -246,9 +246,9 @@ esedbexportinstall=$(locate -l 1 -b "\esedbexport")
 if [ ! -z "$esedbexportinstall" ]; then
 	echo -e "\e[1;32m[+] I found esedbexport on your system\e[0m"
 else
-	echo -e "\n\e[1;33m[*] Downloading libesedb-alpha-20120102 from sourceforge.com...\e[0m"
+	echo -e "\n\e[1;33m[*] Downloading libesedb from googlecode.com...\e[0m"
 	sleep 2
-	wget http://sourceforge.net/projects/libesedb/files/libesedb-alpha/libesedb-alpha-20120102/libesedb-alpha-20120102.tar.gz/download -O /tmp/smbexec/libesedb-alpha-20120102.tar.gz
+	wget http://libesedb.googlecode.com/files/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec/libesedb-alpha-20120102.tar.gz
 	tar -zxf /tmp/smbexec/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec/
 	currentpath=$PWD
 	echo -e "\n\e[1;33m[*] Compiling esedbtools...\e[0m"
