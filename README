@@ -11,15 +11,83 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
  
-Includes
+1. Includes
 - smbexec.sh
 - installer.sh
-- patches to compile binaries
+- smbexeclient & smbwinexe compiled binaries
+  - patches to compile binaries yourself
 - source for samba-3.6.6 and winexe-1.00
 
-Just run the installer and you should be good to go! If not email me....jbrav.hax@gmail.com
+2. Prerequisites
+- Metasploit
+- gcc-mingw32
+- Creddump
+- libesedb
+- NTDSXtract
+- nmap
 
-Credit where credit is due:
+3. Installation
+
+nmap
+already installed
+
+###
+Metasploit
+
+The metasploit version installed crashed during payload creation and encoding. In order for me to get it working, I cloned the github repo to an SD card and run metasploit off of the card.
+###
+The following prereqs are installed when you run install.sh
+
+gcc-mingw32
+Creddump
+NTDSXtract
+libesedb
+python-crypto
+###
+
+4. Compiling your own Binaries
+
+I found that compiling the binaries were a bit of a pain, but def doable. There is not enough space on the pwnie to complete the effort so an SD card is definitly needed.
+
+The following items are required before you compile the binaries:
+apt-get install libtalloc-dev
+apt-get install libtalloc2
+apt-get install libtdb-dev
+apt-get install libtdb1
+apt-get install libwbclient0
+apt-get install autoconf
+apt-get install python-dev
+
+The python install will take up the most diskspace
+
+After those items are installed you need to patch the source that is provided (samba and winexe) and then compile.
+
+Once the binaries are compiled, simply move them as follows
+
+/path/to/samba-3.6.6/source3/bin/smbclient -> /path/to/smbexec/progs/smbexeclient
+/path/to/winexe-1.0/source4/bin/winexe -> /path/to/smbexec/progs/smbwinexe
+
+5. Program paths
+Since 'locate' is not installed by default, I included a portion within the source for specifying paths to the programs which smbexec relies on.
+
+I left in the 'locate' commands in case you want to use them instead of hard coded paths. In order to do this, you would comment out (#) the hardcoded path and uncomment the 'locate' command path.
+
+Example directly from the source code:
+# If you prefer smbexec find the files and set the path values based on machine architecture uncomment the lines below:
+#smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
+#creddumpath=$(locate -l 1 -b "\pwdump.py" | sed 's,/*[^/]\+/*$,,')
+#eseexportpath=$(locate -l 1 -b "\esedbexport"| sed 's,/*[^/]\+/*$,,')
+#dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
+
+# If you prefer to hardcoded the paths, you can do so here, just uncomment the lines below
+smbexecpath=/pentest/smbexec/progs
+creddumpath=/opt/creddump
+eseexportpath=/opt/esedbtools
+dsuserspath=/opt/NTDSXtract
+msfencodepath=/media/sdcard/metasploit-framework
+msfpayloadpath=/media/sdcard/metasploit-framework
+
+6. Credit where credit is due:
 * smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
 	- Patch updated for Samba 3.6.6 by exfil (Emilio Escobar)
 * vanish.sh - Original concept Astr0baby stable version edits Vanish3r -> http://www.securitylabs.in/2011/12/easy-bypass-av-and-firewall.html
@@ -29,6 +97,7 @@ Credit where credit is due:
 * Nmap - nmap.org (Thank you Fydor!)
 * Creddump - Brendan Dolan-Gavitt - http://code.google.com/p/creddump/
 * NTDSXtract - Csaba Barta - http://www.ntdsxtract.com/
-* libesedb - Joachim Metz - http://libesedb.googlecode.com/
+* libesedb - Joachim Metz - http://sourceforge.net/projects/libesedb/
 
 Happy Hunting!
+jbrav.hax@gmail.com

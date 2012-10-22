@@ -10,23 +10,22 @@ f_debian(){
 
 	echo -e "\n\e[1;33m[*] Installing pre-reqs for Debian/Ubuntu...\e[0m\n"
 
-	if [ ! -e /etc/lsb-release ] && [ ! -e /etc/issue ]; then echo -n -e "\e[1;31m[!] I can't confirm this is a Debian\Ubuntu machine. Installs may fail.\e[0m"; read; fi
+	echo -e "\e[1;33m[*] Attempting to retrieving additional disk space before installs\e[0m\n"
+	apt-get clean
+	sleep 5
 
-	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
-	updatedb
-
-	reqs="wget gcc mingw32-runtime mingw-w64 gcc-mingw32 mingw32-binutils xterm"
+	reqs="wget gcc gcc-mingw32 python-crypto"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/checkinstall
 		isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")
 		if [ -z "$isinstalled" ]; then
 			echo -e "\e[1;33m[-] $i is not installed, will attempt to install from repos\e[0m"
 
-			if [ ! -z $(apt-get install -y "$i" | grep -o "E: Couldn") ]; then
+			if [ ! -z $(apt-get install -y --force-yes "$i" | grep -o "E: Couldn") ]; then
 				echo -e "\e[1;31m[-] $i could not be installed from the repository\e[0m"
 			else
 				dpkg -s "$i" &> /tmp/checkinstall
-				isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")				
+				isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")
 				if [ ! -z "$isinstalled" ]; then
 					update=1
 					echo -e "\t\e[1;32m[+] $i was successfully installed from the repository.\e[0m"
@@ -71,110 +70,6 @@ f_debian(){
 rm -rf /tmp/smbexec/
 }
 
-##################################################
-f_rhfedora(){
-	clear
-	f_Banner
-	f_install
-
-        echo -e "\n\e[1;33m[*] Installing pre-reqs for Red Hat/Fedora...\e[0m\n"
-
-	if [ ! -e /etc/redhat-release ]; then echo -n -e "\e[1;31m[!] I can't confirm this is a Red Hat/Fedora machine. Installs may fail.\e[0m"; read; fi
-
-	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
-	updatedb
-
-	reqs="wget gcc gcc-c++ mingw32-gcc mingw32-binutils xterm"
-        for i in $reqs; do
-                if [ -z $(rpm -qa $i) 2>/dev/null ]; then
-                        echo -e "\e[1;31m[-] $i is not installed, will attempt to install from repos\e[0m"
-			yum install -y $i &>/dev/null
-
-			if [ -z $(rpm -qa $i) ]; then
-				echo -e "  \e[1;31m[-] $i could not be installed from the repository.\e[0m"
-			else
-				update=1
-			    	echo -e "\t\e[1;32m[+] $i was successfully installed from the repository.\e[0m"
-			fi
-		else
-		    	echo -e "\e[1;32m[+] I found $i installed on your system\e[0m"
-		fi
-        done
-
-	#Creddump function to find/install
-	f_creddump
-	#ntds extract for AD hash dumping
-	f_ntdsxtract
-	#libesedb extract for AD hash dumping
-	f_libesedb
-
-	if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ] && [ -z $(rpm -qa nmap) ]; then
-		echo -e "\e[1;31m[-] nmap is not installed, will attempt to install from nmap.org\e[0m"
-		sleep 3
-		f_nmapinstall
-	else
-		echo -e "\e[1;32m[+] I found nmap installed on your system\e[0m"
-	fi
-
-	if [[ -z $(locate -b "\msfconsole") ]]; then
-		echo -e "\e\n[1;31m[-] Metasploit is not installed, will attempt to install from metasploit.com\e[0m"
-		sleep 3
-		f_metasploitinstall
-	else
-		echo -e "\e[1;32m[+] I found metasploit installed on your system\e[0m"
-	fi
-
-	if [ "$update" == "1" ]; then
-		echo -e "\n\e[1;33m[*] Running 'updatedb' again because we installed some new stuff\e[0m\n"
-		updatedb
-		echo -e "\n\e[1;33m...happy hunting!\e[0m\n\n"
-	else
-		echo -e "\n\e[1;33m...happy hunting!\e[0m\n\n"
-	fi
-
-rm -rf /tmp/smbexec/
-}
-
-##################################################
-f_microsoft(){
-	clear
-	f_Banner
-	echo "Seriously!?!?! smbexec doesn't run on Windows!!!"
-	echo -e "You need to learn you some Linux!\nHere's some links...\n"
-	echo -e "- http://www.ubuntu.com\n- http://www.debian.org\n- http://fedoraproject.org\n- http://www.gentoo.org"
-	echo -e "\nA whole world of awesomness awaits!\n\n"
-
-	echo "                 .88888888:."
-	echo "                88888888.88888."
-	echo "             .8888888888888888."
-	echo "              888888888888888888"
-	echo "              88' _\`88'_  \`88888"
-	echo "              88 88 88 88  88888"
-	echo "              88_88_::_88_:88888"
-	echo "              88:::,::,:::::8888"
-	echo "              88\`:::::::::'\`8888"
-	echo "             .88  \`::::'    8:88."
-	echo "            8888            \`8:888." 
-	echo "          .8888'             \`888888." 
-	echo "         .8888:..  .::.  ...:'8888888:." 
-	echo "        .8888.'     :'     \`'::\`88:88888" 
-	echo "       .8888        '         \`.888:8888." 
-	echo "      888:8         .           888:88888 "
-	echo "    .888:88        .:           888:88888:" 
-	echo "    8888888.       ::           88:888888" 
-	echo "    \`.::.888.      ::          .88888888" 
-	echo "   .::::::.888.    ::         :::\`8888'.:." 
-	echo "  ::::::::::.888   '         .::::::::::::" 
-	echo "  ::::::::::::.8    '      .:8::::::::::::." 
-	echo " .::::::::::::::.        .:888::::::::::::: "
-	echo " :::::::::::::::88:.__..:88888:::::::::::'" 
-	echo "  \`'.:::::::::::88888888888.88:::::::::'" 
-	echo "        \`':::_:' -- '' -'-' \`':_::::'\` "
-
-	read
-
-	f_mainmenu
-}
 
 ##################################################
 f_install(){
@@ -182,25 +77,25 @@ f_install(){
 if [ ! -e /tmp/smbexec/ ]; then mkdir /tmp/smbexec/; fi
 
 	while [[ $valid != 1 ]]; do
-		read -e -p "Please provide the path you'd like to place the smbexec folder. [/opt] : " smbexecpath	
-		if [ -z $smbexecpath ]; then 
+		read -e -p "Please provide the path you'd like to place the smbexec folder. [/opt] : " smbexecpath
+		if [ -z $smbexecpath ]; then
 			smbexecpath="/opt"
 			valid=1
-		elif [ -e $smbexecpath ]; then 
+		elif [ -e $smbexecpath ]; then
 			valid=1
-		else		
+		else
 			echo "Not a valid file path."
 		fi
 	done
-	
+
 	# Remove the ending slash if it exists in path
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
 	if [ $PWD/smbexec == $smbexecpath/smbexec ]; then 
-		echo "Can't install into the folder.....from the folder.  Choose a different path."
+		echo "Can't install into the folder..... from the folder.  Choose a different path.  :P"
 		unset smbexecpath
 		sleep 5
-		f_install
+		f_mainmenu
 	else
 		# CD out of folder, mv folder to specified path and create symbolic link
 		cd ..
@@ -263,68 +158,6 @@ else
 		echo -e "\e[1;31m[!] esedbtools didn't install properly. You may need to do it manually\e[0m"
 	fi
 fi
-}
-
-##################################################
-f_metasploitinstall(){
-update=1
-echo -e "\n\e[1;33m[*] Downloading Metasploit from metasploit.com, this will take a while to complete\e[0m"
-
-if [ $(uname -m) == "x86_64" ]; then
-	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-x64-installer.run -O /tmp/metasploit-latest-linux-x64-installer.run
-	echo -e "\n\e[1;33m[*] The Metasploit installer will walk you through the rest of the process\e[0m"
-	sleep 5
-	chmod 755 /tmp/metasploit-latest-linux-x64-installer.run
-	/tmp/metasploit-latest-linux-x64-installer.run
-else
-	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-installer.run -O /tmp/metasploit-latest-linux-installer.run
-	echo -e "\n\e[1;33m[*] The Metasploit installer will walk you through the rest of the process\e[0m"
-	sleep 5
-	chmod 755 /tmp/metasploit-latest-linux-installer.run
-	/tmp/metasploit-latest-linux-installer.run
-fi
-
-if [ ! -e /usr/local/bin/msfconsole ]; then
-	echo -e "\e[1;31m[!] Something went wrong, Metasploit did not install properly\e[0m"
-else	
-
-	msfprogs="msfconsole msfupdate msfencode msfpayload"
-	for z in $msfprogs; do
-		if [ ! -e /usr/bin/$z ]; then
-			ln -f -s /usr/local/bin/$z /usr/bin/$z
-		fi
-	done
-	echo -e "\n\e[1;32m[+] Metasploit has been installed...\e[0m"
-fi
-
-sleep 5
-}
-
-##################################################
-f_nmapinstall(){
-update=1
-echo -e "\n\e[1;33m[*] Downloading nmap-6.0.1 from nmap.org, this may take a while to complete\e[0m"
-wget http://nmap.org/dist/nmap-6.01.tgz -O /tmp/nmap-6.0.1.tgz
-cd /tmp
-tar xf nmap-6.0.1.tgz
-cd nmap-6.01/
-echo -e "\n\e[1;33m[*] Installing nmap-6.0.1 on your system\e[0m"
-sleep 3
-./configure
-make && make install
-
-if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ]; then
-	echo -e "\e[1;31m[!] Something went wrong, nmap did not install properly\e[0m"
-else
-	echo -e "\n\e[1;32m[+] nmap has been installed...\e[0m"
-fi
-
-if [ ! -e /usr/bin/nmap ]; then
-	ln -f -s /usr/local/bin/nmap /usr/bin/nmap
-fi
-
-sleep 5
-
 }
 
 ##################################################
@@ -432,17 +265,13 @@ f_Banner
 	echo "Please choose your OS to install smbexec"
 	echo "1.  Compile smbexec binaries"
 	echo "2.  Debian/Ubuntu and derivatives"
-	echo "3.  Red Hat or Fedora"
-	echo "4.  Microsoft Windows"
-	echo "5.  Exit"
+	echo "3.  Exit"
 	echo
 	read -p "Choice: " mainchoice
 
 	case $mainchoice in
 	1) f_compilebinaries ;;
 	2) f_debian ;;
-	3) f_rhfedora ;;
-	4) f_microsoft ;;
 	*) clear;exit ;;
 	esac
 

