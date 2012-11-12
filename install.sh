@@ -353,16 +353,16 @@ fi
 f_compilesmbclient(){
 echo -e "\n\e[1;33m[*] Extracting samba...\e[0m"
 sleep 2
-tar -zxf $path/sources/samba-3.6.6.tar.gz -C /tmp/smbexec/ > /dev/null 2>&1
-cp $path/patches/samba-3.6.6-hashpass.patch /tmp/smbexec/samba-3.6.6/samba-3.6.6-hashpass.patch
-cd /tmp/smbexec/samba-3.6.6
+tar -zxf $path/sources/samba-3.6.9.tar.gz -C /tmp/smbexec/ > /dev/null 2>&1
+cp $path/patches/samba-3.6.9-hashpass.patch /tmp/smbexec/samba-3.6.9/samba-3.6.9-hashpass.patch
+cd /tmp/smbexec/samba-3.6.9
 echo -e "\n\e[1;33m[*] Patching samba to accept hashes...\e[0m"
 sleep 2
-patch -p1 < samba-3.6.6-hashpass.patch > /dev/null 2>&1
+patch -p1 < samba-3.6.9-hashpass.patch > /dev/null 2>&1
 echo -e "\n\e[1;33m[*] Compiling smbexeclient, this may take a while...\e[0m"
 sleep 2
-cd /tmp/smbexec/samba-3.6.6/source3/ && ./configure && make
-mv /tmp/smbexec/samba-3.6.6/source3/bin/smbclient $path/progs/smbexeclient 
+cd /tmp/smbexec/samba-3.6.9/source3/ && ./configure && make
+mv /tmp/smbexec/samba-3.6.9/source3/bin/smbclient $path/progs/smbexeclient 
 cd $path
 
 if [ -e $path/progs/smbexeclient ]; then

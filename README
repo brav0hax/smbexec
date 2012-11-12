@@ -10,14 +10,23 @@ Written because we got sick of Metasploit PSExec getting popped
 
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
- 
+
+v1.1.1 - 11/11/2012
+FIXED - Sometimes the IP validation fails even though it is a proper IP address
+UPDATE - Installer updated with Samba-3.6.9 source
+UPDATE - libesedb project moved to Google Code, installer updated with proper path  
+
 Includes
 - smbexec.sh
 - installer.sh
 - patches to compile binaries
-- source for samba-3.6.6 and winexe-1.00
+- source for samba-3.6.9 and winexe-1.00
 
 Just run the installer and you should be good to go! If not email me....jbrav.hax@gmail.com
+- Run option #1 to compile binaries before you do anything!
+*** If there are no binaries...the program will not work***
+Sounds simple enough
+
 
 Credit where credit is due:
 * smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
