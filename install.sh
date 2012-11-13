@@ -1,6 +1,6 @@
 #!/bin/bash
-# smbexec installer v1.1.0
-# Last updated 08/13/2012
+# smbexec installer v1.1.1
+# Last updated 11/12/2012
 
 ##################################################
 f_debian(){
