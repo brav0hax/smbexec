@@ -283,7 +283,7 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.1.0\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v1.1.1\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
 	echo "              Codename - Diamond in the Rough	          "
