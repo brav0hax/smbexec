@@ -405,10 +405,11 @@ f_compilebinaries(){
 path=$PWD
 echo -e "\nThis script will compile your smbexec binaries\nPress any key to continue"
 read
-mkdir /tmp/smbexec/
+if [ ! -e /tmp/smbexec ]; then
+ mkdir /tmp/smbexec/
+fi
 f_compilesmbclient
 f_compilewinexe
-rm -rf /tmp/smbexec
 f_mainmenu
 }
 
