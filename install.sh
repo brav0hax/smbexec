@@ -1,6 +1,6 @@
 #!/bin/bash
-# smbexec installer v1.1.1
-# Last updated 11/12/2012
+# smbexec installer v1.2.0
+# Last updated 11/20/2012
 
 ##################################################
 f_debian(){
@@ -68,7 +68,7 @@ f_debian(){
 		echo -e "\n\e[1;33m...happy hunting!\e[0m\n\n"
 	fi
 
-rm -rf /tmp/smbexec/
+rm -rf /tmp/smbexec-inst/
 }
 
 ##################################################
@@ -132,7 +132,7 @@ f_rhfedora(){
 		echo -e "\n\e[1;33m...happy hunting!\e[0m\n\n"
 	fi
 
-rm -rf /tmp/smbexec/
+rm -rf /tmp/smbexec-inst/
 }
 
 ##################################################
@@ -179,7 +179,7 @@ f_microsoft(){
 ##################################################
 f_install(){
 
-if [ ! -e /tmp/smbexec/ ]; then mkdir /tmp/smbexec/; fi
+if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 
 	while [[ $valid != 1 ]]; do
 		read -e -p "Please provide the path you'd like to place the smbexec folder. [/opt] : " smbexecpath	
@@ -196,11 +196,12 @@ if [ ! -e /tmp/smbexec/ ]; then mkdir /tmp/smbexec/; fi
 	# Remove the ending slash if it exists in path
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
-	if [ $PWD/smbexec == $smbexecpath/smbexec ]; then 
-		echo "Can't install into the folder.....from the folder.  Choose a different path."
-		unset smbexecpath
-		sleep 5
-		f_install
+	if [ $PWD == $smbexecpath/smbexec ]; then 
+		echo -e "\e[1;33m[*]OK...keeping the folder where it is...\e[0m"
+		sleep 3
+		chmod 755 $smbexecpath/smbexec/smbexec.sh
+		chmod 755 $smbexecpath/smbexec/progs/*
+		ln -f -s $smbexecpath/smbexec/smbexec.sh /usr/bin/smbexec
 	else
 		# CD out of folder, mv folder to specified path and create symbolic link
 		cd ..
@@ -227,9 +228,9 @@ if [ ! -z "$NTDSXtractinstall" ]; then
 else
 	echo -e "\n\e[1;33m[*] Downloading NTDSXTRACT from ntdsxtract.com...\e[0m"
 	sleep 2
-	wget http://www.ntdsxtract.com/downloads/ntdsxtract/ntdsxtract_v1_0.zip -O /tmp/smbexec/ntdsxtract_v1_0.zip
-	unzip /tmp/smbexec/ntdsxtract_v1_0.zip -d /tmp/smbexec/
-	mv /tmp/smbexec/NTDSXtract\ 1.0 /opt/NTDSXtract
+	wget http://www.ntdsxtract.com/downloads/ntdsxtract/ntdsxtract_v1_0.zip -O /tmp/smbexec-inst/ntdsxtract_v1_0.zip
+	unzip /tmp/smbexec-inst/ntdsxtract_v1_0.zip -d /tmp/smbexec-inst/
+	mv /tmp/smbexec-inst/NTDSXtract\ 1.0 /opt/NTDSXtract
 	if [ -e /opt/NTDSXtract/dsusers.py ]; then
 		echo -e "\n\e[1;32m[+] NTDSXtract has been installed...\e[0m"
 	else
@@ -248,14 +249,14 @@ if [ ! -z "$esedbexportinstall" ]; then
 else
 	echo -e "\n\e[1;33m[*] Downloading libesedb from googlecode.com...\e[0m"
 	sleep 2
-	wget http://libesedb.googlecode.com/files/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec/libesedb-alpha-20120102.tar.gz
-	tar -zxf /tmp/smbexec/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec/
+	wget http://libesedb.googlecode.com/files/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
+	tar -zxf /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec-inst/
 	currentpath=$PWD
 	echo -e "\n\e[1;33m[*] Compiling esedbtools...\e[0m"
 	sleep 2
-	cd /tmp/smbexec/libesedb-20120102/
+	cd /tmp/smbexec-inst/libesedb-20120102/
 	./configure --enable-static-executables && make
-	mv /tmp/smbexec/libesedb-20120102/esedbtools /opt/esedbtools
+	mv /tmp/smbexec-inst/libesedb-20120102/esedbtools /opt/esedbtools
 	cd "$currentpath"
 	if [ -e /opt/esedbtools/esedbexport ] && [ -x /opt/esedbtools/esedbexport ]; then
 		echo -e "\n\e[1;32m[+] esedbtools have been installed...\e[0m"
@@ -336,10 +337,10 @@ if [ ! -z "$creddumpinstall" ]; then
 else
 	update=1
 	echo -e "\e[1;33m[-] Could not find creddump on your system, will attempt to download v0.3 from Google code\e[0m"
-	wget http://creddump.googlecode.com/files/creddump-0.3.tar.bz2 -O /tmp/smbexec/creddump-0.3.tar.bz2
-	tar -xjf /tmp/smbexec/creddump-0.3.tar.bz2 -C /tmp/smbexec/
+	wget http://creddump.googlecode.com/files/creddump-0.3.tar.bz2 -O /tmp/smbexec-inst/creddump-0.3.tar.bz2
+	tar -xjf /tmp/smbexec-inst/creddump-0.3.tar.bz2 -C /tmp/smbexec-inst/
 	mkdir /opt/creddump
-	cp -R /tmp/smbexec/creddump-0.3/* /opt/creddump/
+	cp -R /tmp/smbexec-inst/creddump-0.3/* /opt/creddump/
 	if [ -e /opt/creddump/pwdump.py ]; then
 		echo -e "\n\e[1;32m[+] creddump has been installed...\e[0m"
 	else
@@ -353,16 +354,16 @@ fi
 f_compilesmbclient(){
 echo -e "\n\e[1;33m[*] Extracting samba...\e[0m"
 sleep 2
-tar -zxf $path/sources/samba-3.6.9.tar.gz -C /tmp/smbexec/ > /dev/null 2>&1
-cp $path/patches/samba-3.6.9-hashpass.patch /tmp/smbexec/samba-3.6.9/samba-3.6.9-hashpass.patch
-cd /tmp/smbexec/samba-3.6.9
+tar -zxf $path/sources/samba-3.6.9.tar.gz -C /tmp/smbexec-inst/ > /dev/null 2>&1
+cp $path/patches/samba-3.6.9-hashpass.patch /tmp/smbexec-inst/samba-3.6.9/samba-3.6.9-hashpass.patch
+cd /tmp/smbexec-inst/samba-3.6.9
 echo -e "\n\e[1;33m[*] Patching samba to accept hashes...\e[0m"
 sleep 2
 patch -p1 < samba-3.6.9-hashpass.patch > /dev/null 2>&1
 echo -e "\n\e[1;33m[*] Compiling smbexeclient, this may take a while...\e[0m"
 sleep 2
-cd /tmp/smbexec/samba-3.6.9/source3/ && ./configure && make
-mv /tmp/smbexec/samba-3.6.9/source3/bin/smbclient $path/progs/smbexeclient 
+cd /tmp/smbexec-inst/samba-3.6.9/source3/ && ./configure && make
+mv /tmp/smbexec-inst/samba-3.6.9/source3/bin/smbclient $path/progs/smbexeclient 
 cd $path
 
 if [ -e $path/progs/smbexeclient ]; then
@@ -378,16 +379,16 @@ fi
 f_compilewinexe(){
 echo -e "\n\e[1;33m[*] Extracting winexe...\e[0m"
 sleep 2
-tar -zxf $path/sources/winexe-1.00.tar.gz -C /tmp/smbexec/
-cp $path/patches/winexe-1.0-hashpass.patch /tmp/smbexec/winexe-1.00/winexe-1.0-hashpass.patch
-cd /tmp/smbexec/winexe-1.00
+tar -zxf $path/sources/winexe-1.00.tar.gz -C /tmp/smbexec-inst/
+cp $path/patches/winexe-1.0-hashpass.patch /tmp/smbexec-inst/winexe-1.00/winexe-1.0-hashpass.patch
+cd /tmp/smbexec-inst/winexe-1.00
 echo -e "\n\e[1;33m[*] Patching winexe to accept hashes...\e[0m"
 sleep 2
 patch -p1 < winexe-1.0-hashpass.patch > /dev/null 2>&1
 echo -e "\n\e[1;33m[*] Compiling smbwinexe, this may take a while...\e[0m"
 sleep 2
-cd /tmp/smbexec/winexe-1.00/source4 && ./autogen.sh && ./configure && make
-mv /tmp/smbexec/winexe-1.00/source4/bin/winexe $path/progs/smbwinexe
+cd /tmp/smbexec-inst/winexe-1.00/source4 && ./autogen.sh && ./configure && make
+mv /tmp/smbexec-inst/winexe-1.00/source4/bin/winexe $path/progs/smbwinexe
 cd $path
 
 if [ -e $path/progs/smbwinexe ]; then
@@ -405,8 +406,8 @@ f_compilebinaries(){
 path=$PWD
 echo -e "\nThis script will compile your smbexec binaries\nPress any key to continue"
 read
-if [ ! -e /tmp/smbexec ]; then
- mkdir /tmp/smbexec/
+if [ ! -e /tmp/smbexec-inst ]; then
+ mkdir /tmp/smbexec-inst/
 fi
 f_compilesmbclient
 f_compilewinexe
