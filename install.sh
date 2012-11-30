@@ -411,6 +411,7 @@ if [ ! -e /tmp/smbexec-inst ]; then
 fi
 f_compilesmbclient
 f_compilewinexe
+updatedb
 f_mainmenu
 }
 
@@ -421,8 +422,8 @@ echo "************************************************************"
 echo -e "		    \e[1;36msmbexec installer\e[0m       "
 echo "	A rapid psexec style attack with samba tools              "
 echo "      Original Concept and Script by Brav0Hax & Purehate    "
-echo "              Codename - Diamond in the Rough	          "
-echo -e "             Gonna pha-q up - \e[1;35mPurpleTeam\e[0m Smash!"
+echo "              Codename - Himalayan Salt Room	          "
+echo -e "              \e[1;35mPurpleTeam\e[0m Smash!"
 echo "************************************************************"
 echo
 }
