@@ -11,6 +11,12 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
+v1.2.0 - 11/30/2012
+FIXED - Script now checks to ensure exe's are compile before running. Alerts user to use installer to compile.
+UPDATE - Added drive and path variables to ntds hash grab function. (No longer hardcoded to C:\Windows\NTDS or C:\Windows\Temp)
+UPDATE - Checks for available diskspace before copying ntds.dit and sys files to the path provided
+UPDATE - Deletes the volume shadow copy created by the ntds hash grab function
+
 v1.1.1 - 11/11/2012
 FIXED - Sometimes the IP validation fails even though it is a proper IP address
 UPDATE - Installer updated with Samba-3.6.9 source
