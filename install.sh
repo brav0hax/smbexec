@@ -15,7 +15,7 @@ f_debian(){
 	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
 	updatedb
 
-	reqs="wget gcc mingw32-runtime mingw-w64 gcc-mingw32 mingw32-binutils xterm"
+	reqs="wget gcc mingw32-runtime mingw-w64 gcc-mingw32 mingw32-binutils xterm python-dev cmake"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/checkinstall
 		isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")

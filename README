@@ -2,7 +2,7 @@
 		      	smbexec
 	A rapid psexec style attack with samba tools
       Original Concept and Script by PureHate & Brav0Hax
-              Codename - Diamond in the Rough
+              Codename - Mommy's Little Monster
              Gonna pha-q up - PurpleTeam Smash!
 ************************************************************
 
@@ -10,6 +10,19 @@ Written because we got sick of Metasploit PSExec getting popped
 
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+
+v1.2.2 - 01/17/2013
+UPDATE - Check credentials for remote login capabilities
+UPDATE - Checks systems for DA/EA users logged in or running processes
+UPDATE - If wce.exe is place in the smbexec/progs/ direcotry it will upload and execute on the target to obtain cleartext credentials from memory during hash grab
+
+NOTE: The wce.exe file that exists in the progs directory has been obfuscated and is included in smbexec with written permission from the copyright owner Hernan Ochoa.
+Hernan retains all rights to the Windows Credential Editor and can ask to have the program removed from smbexec distribution at any time. We'd like to than Hernan for letting us include his incredibly awesome tool for distribution.
+
+Windows Credentials Editor v1.3beta (32-bit)
+(c) 2010, 2011, 2012 Amplia Security, Hernan Ochoa
+written by: hernan@ampliasecurity.com
+http://www.ampliasecurity.com
 
 v1.2.0 - 11/30/2012
 FIXED - Script now checks to ensure exe's are compile before running. Alerts user to use installer to compile.
@@ -35,6 +48,7 @@ Sounds simple enough
 
 
 Credit where credit is due:
+* wce.exe - Hernan Ochoa - An incredible tool that mimikatz CANNOT touch! - http://www.ampliasecurity.com
 * smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
 	- Patch updated for Samba 3.6.6 by exfil (Emilio Escobar)
 * vanish.sh - Original concept Astr0baby stable version edits Vanish3r -> http://www.securitylabs.in/2011/12/easy-bypass-av-and-firewall.html
