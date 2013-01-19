@@ -14,7 +14,7 @@ http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-inste
 v1.2.2 - 01/17/2013
 UPDATE - Check credentials for remote login capabilities
 UPDATE - Checks systems for DA/EA users logged in or running processes
-UPDATE - If wce.exe is place in the smbexec/progs/ direcotry it will upload and execute on the target to obtain cleartext credentials from memory during hash grab
+UPDATE - If wce.exe is place in the smbexec/progs/ directory it will upload and execute on the target to obtain cleartext credentials from memory during hash grab
 
 NOTE: The wce.exe file that exists in the progs directory has been obfuscated and is included in smbexec with written permission from the copyright owner Hernan Ochoa.
 Hernan retains all rights to the Windows Credential Editor and can ask to have the program removed from smbexec distribution at any time. We'd like to than Hernan for letting us include his incredibly awesome tool for distribution.

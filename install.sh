@@ -1,6 +1,6 @@
 #!/bin/bash
-# smbexec installer v1.2.0
-# Last updated 11/20/2012
+# smbexec installer
+# Last updated 01/19/2013
 
 ##################################################
 f_debian(){
@@ -422,7 +422,6 @@ echo "************************************************************"
 echo -e "		    \e[1;36msmbexec installer\e[0m       "
 echo "	A rapid psexec style attack with samba tools              "
 echo "      Original Concept and Script by Brav0Hax & Purehate    "
-echo "              Codename - Himalayan Salt Room	          "
 echo -e "              \e[1;35mPurpleTeam\e[0m Smash!"
 echo "************************************************************"
 echo
