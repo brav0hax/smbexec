@@ -11,6 +11,10 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
+v1.2.3 - 01/20/2013
+UPDATE - Changed menu layout, was getting crowded on the main page. Combined like tasks.
+FIXED - Hash folder creation wasn't checking for existing folder before trying to create. Resulted in error message.
+
 v1.2.2 - 01/17/2013
 UPDATE - Check credentials for remote login capabilities
 UPDATE - Checks systems for DA/EA users logged in or running processes
