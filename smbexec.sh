@@ -1140,7 +1140,7 @@ f_obtain_hashes_menu(){
 	clear
 	f_banner
 	echo -e "\e[1;37mObtain Hashes Menu\e[0m"
-	echo "1. Workstation & Server Hashes (Local & DCC)"
+	echo "1. Workstation & Server Hashes"
 	echo "2. Domain Controller"
 	echo "3. Main Menu"
 
