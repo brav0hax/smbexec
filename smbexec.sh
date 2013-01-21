@@ -1131,7 +1131,7 @@ f_system_exploitation_menu(){
 		2) f_vanish ;;
 		3) f_vanish ;;
 		4) f_mainmenu ;;
-		*) f_hashmenu ;;
+		*) f_system_exploitation_menu ;;
 	esac
 
 }
@@ -1150,7 +1150,7 @@ f_obtain_hashes_menu(){
 		1) f_hashgrab ;;
 		2) f_dchashgrab ;;
 		3) f_mainmenu ;;
-		*) f_hashmenu ;;
+		*) f_obtain_hashes_menu ;;
 	esac
 
 }
@@ -1185,4 +1185,3 @@ if [ "$(id -u)" != "0" ]; then
 else
 	f_mainmenu
 fi
-
