@@ -462,13 +462,13 @@ if [ "$sysenumchoice" == "5" ];then
 	if [ -e /tmp/smbexec/uac_enabled.lst.tmp ];then
 		mv /tmp/smbexec/uac_enabled.lst.tmp $logfldr/uac_enabled.lst
 	fi
-elif [ "$sysexpchoice" == "4" ]; then
+elif [ "$sysexpchoice" == "3" ]; then
 	f_disable_uac
-elif [ "$sysexpchoice" == "5" ]; then
+elif [ "$sysexpchoice" == "4" ]; then
 	f_enable_uac
 fi
 
-f_freshstart
+#f_freshstart
 f_mainmenu
 
 }
