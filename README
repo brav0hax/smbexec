@@ -11,6 +11,9 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
+v1.2.4 - 02/04/2013
+UPDATE - Added UAC functionality. Now you can check systems to see if they have UAC enabled. In addition, you can disable or enable UAC on systems
+
 v1.2.3 - 01/20/2013
 UPDATE - Changed menu layout, was getting crowded on the main page. Combined like tasks.
 FIXED - Hash folder creation wasn't checking for existing folder before trying to create. Resulted in error message.
