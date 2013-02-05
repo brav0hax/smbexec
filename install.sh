@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 01/19/2013
+# Last updated 02/05/2013
 
 ##################################################
 f_debian(){
@@ -352,53 +352,63 @@ fi
 
 ##################################################
 f_compilesmbclient(){
-echo -e "\n\e[1;33m[*] Extracting samba...\e[0m"
-sleep 2
-tar -zxf $path/sources/samba-3.6.9.tar.gz -C /tmp/smbexec-inst/ > /dev/null 2>&1
-cp $path/patches/samba-3.6.9-hashpass.patch /tmp/smbexec-inst/samba-3.6.9/samba-3.6.9-hashpass.patch
-cd /tmp/smbexec-inst/samba-3.6.9
-echo -e "\n\e[1;33m[*] Patching samba to accept hashes...\e[0m"
-sleep 2
-patch -p1 < samba-3.6.9-hashpass.patch > /dev/null 2>&1
-echo -e "\n\e[1;33m[*] Compiling smbexeclient, this may take a while...\e[0m"
-sleep 2
-cd /tmp/smbexec-inst/samba-3.6.9/source3/ && ./configure && make
-mv /tmp/smbexec-inst/samba-3.6.9/source3/bin/smbclient $path/progs/smbexeclient 
-cd $path
 
 if [ -e $path/progs/smbexeclient ]; then
-	echo -e "\n\e[1;32m[+] smbexeclient has been compiled and moved to the progs folder...\e[0m"
+	echo -e "\n\e[1;32m[+] Looks like smbexeclient is already compiled, moving to smbwinexe compilation...\e[0m"
 	sleep 3
 else
-	echo -e "\e[1;31m[!] smbexeclient didn't install properly. Make sure you have prereqs installed...\e[0m"
-	sleep 5
+	echo -e "\n\e[1;33m[*] Extracting samba...\e[0m"
+	sleep 2
+	tar -zxf $path/sources/samba.tar.gz -C /tmp/smbexec-inst/ > /dev/null 2>&1
+	cp $path/patches/samba-hashpass.patch /tmp/smbexec-inst/samba/samba-hashpass.patch
+	cd /tmp/smbexec-inst/samba
+	echo -e "\n\e[1;33m[*] Patching samba to accept hashes...\e[0m"
+	sleep 2
+	patch -p1 < samba-hashpass.patch > /dev/null 2>&1
+	echo -e "\n\e[1;33m[*] Compiling smbexeclient, this may take a while...\e[0m"
+	sleep 2
+	cd /tmp/smbexec-inst/samba/source3/ && ./configure && make
+	mv /tmp/smbexec-inst/samba/source3/bin/smbclient $path/progs/smbexeclient 
+	cd $path
+
+	if [ -e $path/progs/smbexeclient ]; then
+		echo -e "\n\e[1;32m[+] smbexeclient has been compiled and moved to the progs folder...\e[0m"
+		sleep 3
+	else
+		echo -e "\e[1;31m[!] smbexeclient didn't install properly. Make sure you have prereqs installed...\e[0m"
+		sleep 5
+	fi
 fi
 }
 
 ##################################################
 f_compilewinexe(){
-echo -e "\n\e[1;33m[*] Extracting winexe...\e[0m"
-sleep 2
-tar -zxf $path/sources/winexe-1.00.tar.gz -C /tmp/smbexec-inst/
-cp $path/patches/winexe-1.0-hashpass.patch /tmp/smbexec-inst/winexe-1.00/winexe-1.0-hashpass.patch
-cd /tmp/smbexec-inst/winexe-1.00
-echo -e "\n\e[1;33m[*] Patching winexe to accept hashes...\e[0m"
-sleep 2
-patch -p1 < winexe-1.0-hashpass.patch > /dev/null 2>&1
-echo -e "\n\e[1;33m[*] Compiling smbwinexe, this may take a while...\e[0m"
-sleep 2
-cd /tmp/smbexec-inst/winexe-1.00/source4 && ./autogen.sh && ./configure && make
-mv /tmp/smbexec-inst/winexe-1.00/source4/bin/winexe $path/progs/smbwinexe
-cd $path
-
 if [ -e $path/progs/smbwinexe ]; then
-	echo -e "\n\e[1;32m[+] smbwinexe has been compiled and moved to the progs folder...\e[0m"
+	echo -e "\n\e[1;32m[+] Looks like smbwinexe is already compiled, finishing up...\e[0m"
 	sleep 3
 else
-	echo -e "\e[1;31m[!] smbwinexe didn't install properly. Make sure you have prereqs installed...\e[0m"
-	sleep 5
-fi
+	echo -e "\n\e[1;33m[*] Extracting winexe...\e[0m"
+	sleep 2
+	tar -zxf $path/sources/winexe.tar.gz -C /tmp/smbexec-inst/
+	cp $path/patches/winexe-hashpass.patch /tmp/smbexec-inst/winexe/winexe-hashpass.patch
+	cd /tmp/smbexec-inst/winexe
+	echo -e "\n\e[1;33m[*] Patching winexe to accept hashes...\e[0m"
+	sleep 2
+	patch -p1 < winexe-hashpass.patch > /dev/null 2>&1
+	echo -e "\n\e[1;33m[*] Compiling smbwinexe, this may take a while...\e[0m"
+	sleep 2
+	cd /tmp/smbexec-inst/winexe/source4 && ./autogen.sh && ./configure && make
+	mv /tmp/smbexec-inst/winexe/source4/bin/winexe $path/progs/smbwinexe
+	cd $path
 
+	if [ -e $path/progs/smbwinexe ]; then
+		echo -e "\n\e[1;32m[+] smbwinexe has been compiled and moved to the progs folder...\e[0m"
+		sleep 3
+	else
+		echo -e "\e[1;31m[!] smbwinexe didn't install properly. Make sure you have prereqs installed...\e[0m"
+		sleep 5
+	fi
+fi
 }
 
 ##################################################
@@ -412,6 +422,7 @@ fi
 f_compilesmbclient
 f_compilewinexe
 updatedb
+rm -rf /tmp/smbexec-inst/
 f_mainmenu
 }
 
@@ -422,7 +433,7 @@ echo "************************************************************"
 echo -e "		    \e[1;36msmbexec installer\e[0m       "
 echo "	A rapid psexec style attack with samba tools              "
 echo "      Original Concept and Script by Brav0Hax & Purehate    "
-echo -e "              \e[1;35mPurpleTeam\e[0m Smash!"
+echo -e "              	    \e[1;35mPurpleTeam\e[0m Smash!"
 echo "************************************************************"
 echo
 }
