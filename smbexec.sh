@@ -562,25 +562,11 @@ fi
 
 for i in $(cat $RHOSTS); do
 	# Check to see if login is valid to the system before it attempts anything else
-	$smbexecpath/smbexeclient //$i/IPC$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp
+	$smbexecpath/smbexeclient //$i/C$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp
 
 	# Check to see what type of error we got so we can tell the user
 	f_smbauthinfo
-
-	if [ -s /tmp/smbexec/success.chk ] && [ -z "$badshare" ]; then
-		echo -e "\n\e[1;32m[+] Authentication to $i successful...\e[0m"
-	elif [ -s /tmp/smbexec/success.chk ] && [ ! -z "$badshare" ]; then
-		echo -e "\n\e[1;33m[*] Authentication to $i was successful, but the share doesn't exist\e[0m"
-	elif [ ! -z "$logonfail" ]; then
-		echo -e "\n\e[1;31m[-] Authentication to $i failed\e[0m"
-	elif [ ! -z "$connrefused" ]; then
-		echo -e "\n\e[1;31m[-] Connection to $i was refused\e[0m"
-	elif [ ! -z "$unreachable" ]; then
-		echo -e "\n\e[1;31m[-] There is no host assigned to IP address $i \e[0m"
-	else
-		echo -e "\n\e[1;33m[*] I'm not sure what happened, supplying output...\e[0m"
-		cat /tmp/smbexec/connects.tmp | egrep -i '(error|failed:)'
-	fi
+	f_smbauthresponse
 
 	# Get successful IP addy for cleanup later
 	ConnCheck=$(cat /tmp/smbexec/connects.tmp | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -u)
@@ -631,7 +617,7 @@ for i in $(cat $RHOSTS); do
 	unset badshare
 	unset unreachable
 done
-
+sleep 3
 f_freshstart
 f_mainmenu
 
