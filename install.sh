@@ -95,7 +95,7 @@ f_rhfedora(){
 	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
 	updatedb
 
-	reqs="wget gcc gcc-c++ mingw32-gcc mingw32-binutils xterm"
+	reqs="wget gcc gcc-c++ mingw32-gcc mingw32-binutils xterm cmake autoconf python-devel"
         for i in $reqs; do
                 if [ -z $(rpm -qa $i) 2>/dev/null ]; then
                         echo -e "\e[1;31m[-] $i is not installed, will attempt to install from repos\e[0m"
@@ -128,7 +128,7 @@ f_rhfedora(){
 	fi
 
 	if [[ -z $(locate -b "\msfconsole") ]]; then
-		echo -e "\e\n[1;31m[-] Metasploit is not installed, will attempt to install from metasploit.com\e[0m"
+		echo -e "\n\e[1;31m[-] Metasploit is not installed, will attempt to install from metasploit.com\e[0m"
 		sleep 3
 		f_metasploitinstall
 	else
