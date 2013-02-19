@@ -26,7 +26,7 @@ f_debian(){
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 	
-	reqs="wget gcc xterm python-dev cmake"
+	reqs="wget gcc g++ xterm python-dev cmake"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
 		isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")
