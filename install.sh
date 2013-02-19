@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 02/05/2013
+# Last updated 02/19/2013
 
 ##################################################
 f_debian(){
@@ -14,11 +14,22 @@ f_debian(){
 
 	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
 	updatedb
-
-	reqs="wget gcc mingw32-runtime mingw-w64 gcc-mingw32 mingw32-binutils xterm python-dev cmake"
+	
+	#Install the correct mingw
+	mingw64=$(apt-cache search gcc-mingw-w64)
+	
+	if [ -z "$mingw64" ]; then
+		echo -e "\e[1;33m[*] Installing mingw requirements for 32 bit and older 64bit systems...\e[0m"
+		apt-get install -y mingw32-runtime gcc-mingw32 mingw32-binutils &> /tmp/smbexec-inst/checkinstall
+	else
+		echo -e "\e[1;33m[*] Installing mingw requirements for modern 64 bit systems...\e[0m"
+		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
+	fi
+	
+	reqs="wget gcc xterm python-dev cmake"
 	for i in $reqs; do
-		dpkg -s "$i" &> /tmp/checkinstall
-		isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")
+		dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
+		isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")
 		if [ -z "$isinstalled" ]; then
 			echo -e "\e[1;33m[-] $i is not installed, will attempt to install from repos\e[0m"
 
@@ -26,7 +37,7 @@ f_debian(){
 				echo -e "\e[1;31m[-] $i could not be installed from the repository\e[0m"
 			else
 				dpkg -s "$i" &> /tmp/checkinstall
-				isinstalled=$(cat /tmp/checkinstall | grep -o "Status: install ok installed")				
+				isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")				
 				if [ ! -z "$isinstalled" ]; then
 					update=1
 					echo -e "\t\e[1;32m[+] $i was successfully installed from the repository.\e[0m"
@@ -47,8 +58,8 @@ f_debian(){
 	#libesedb extract for AD hash dumping
 	f_libesedb
 
-	dpkg -s nmap &> /tmp/checkinstall #Adding this here or else uninstalled package spews errors to user screen
-	if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ] && [ -z $(cat /tmp/checkinstall | grep -o "Status: install ok installed") ]; then
+	dpkg -s nmap &> /tmp/smbexec-inst/checkinstall #Adding this here or else uninstalled package spews errors to user screen
+	if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ] && [ -z $(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed") ]; then
 		f_nmapinstall
 	else
 		echo -e "\e[1;32m[+] I found nmap installed on your system\e[0m"
@@ -197,7 +208,7 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
 	if [ $PWD == $smbexecpath/smbexec ]; then 
-		echo -e "\e[1;33m[*]OK...keeping the folder where it is...\e[0m"
+		echo -e "\e[1;33m[*] OK...keeping the folder where it is...\e[0m"
 		sleep 3
 		chmod 755 $smbexecpath/smbexec/smbexec.sh
 		chmod 755 $smbexecpath/smbexec/progs/*
@@ -295,7 +306,7 @@ else
 			ln -f -s /usr/local/bin/$z /usr/bin/$z
 		fi
 	done
-	echo -e "\n\e[1;32m[+] Metasploit has been installed...\e[0m"
+	echo -e "\n\e[1;32m[+] Metasploit has been installed...don't foget to get your activation key from Rapid7\e[0m"
 fi
 
 sleep 5
@@ -440,22 +451,23 @@ echo
 
 ##################################################
 f_mainmenu(){
+
 clear
 f_Banner
 	echo "Please choose your OS to install smbexec"
-	echo "1.  Compile smbexec binaries"
-	echo "2.  Debian/Ubuntu and derivatives"
-	echo "3.  Red Hat or Fedora"
-	echo "4.  Microsoft Windows"
+	echo "1.  Debian/Ubuntu and derivatives"
+	echo "2.  Red Hat or Fedora"
+	echo "3.  Microsoft Windows"
+	echo "4.  Compile smbexec binaries"
 	echo "5.  Exit"
 	echo
 	read -p "Choice: " mainchoice
 
 	case $mainchoice in
-	1) f_compilebinaries ;;
-	2) f_debian ;;
-	3) f_rhfedora ;;
-	4) f_microsoft ;;
+	1) f_debian ;;
+	2) f_rhfedora ;;
+	3) f_microsoft ;;
+	4) f_compilebinaries ;;
 	*) clear;exit ;;
 	esac
 
