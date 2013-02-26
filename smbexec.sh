@@ -372,7 +372,7 @@ password_hash=
 	fi
 	
 	if [ -e /tmp/smbexec/da-systems.lst ]; then
-		cat /tmp/smbexec/da-systems.lst|cut -d " " -f2-13 > $logfldr/systems-with-da.lst
+		cat /tmp/smbexec/da-systems.lst|cut -d " " -f2- > $logfldr/systems-with-da.lst
 	fi
 	done
 
@@ -408,7 +408,7 @@ f_get_logged_in_users(){
 $smbexecpath/smbwinexe -U $SMBDomain/$j //$i "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
 
 #win2k doesn't have tasklist - this will hopefully prevent error spewing
-f_tasklist_check
+f_tasklisk_check
 
 if [ -z "$tasklist_check" ]; then
 	cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|tr '[:upper:]' '[:lower:]'|sort -u > /tmp/smbexec/tasklist.sorted
@@ -422,7 +422,8 @@ fi
 }
 
 f_tasklisk_check(){
-tasklist_check=$(cat /tmp/smbexec/tasklist.tmp|grep -o tasklist)
+tasklist_check=$(cat /tmp/smbexec/tasklist.tmp|grep -o "not recognized")
+echo "$tasklist_check"
 }
 
 f_compare_accounts(){
