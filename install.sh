@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 02/19/2013
+# Last updated 02/23/2013
 
 ##################################################
 f_debian(){
@@ -12,7 +12,7 @@ f_debian(){
 
 	if [ ! -e /etc/lsb-release ] && [ ! -e /etc/issue ]; then echo -n -e "\e[1;31m[!] I can't confirm this is a Debian\Ubuntu machine. Installs may fail.\e[0m"; read; fi
 
-	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
+	echo -e "\e[1;33m[*] Running 'updatedb' if it fails then install 'locate' from repos and try again\e[0m\n"
 	updatedb
 	
 	#Install the correct mingw
@@ -26,7 +26,7 @@ f_debian(){
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 	
-	reqs="wget gcc g++ xterm python-dev cmake"
+	reqs="autoconf cmake g++ gcc python-dev wget xterm"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
 		isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")
@@ -36,7 +36,7 @@ f_debian(){
 			if [ ! -z $(apt-get install -y "$i" | grep -o "E: Couldn") ]; then
 				echo -e "\e[1;31m[-] $i could not be installed from the repository\e[0m"
 			else
-				dpkg -s "$i" &> /tmp/checkinstall
+				dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
 				isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")				
 				if [ ! -z "$isinstalled" ]; then
 					update=1
@@ -92,10 +92,10 @@ f_rhfedora(){
 
 	if [ ! -e /etc/redhat-release ]; then echo -n -e "\e[1;31m[!] I can't confirm this is a Red Hat/Fedora machine. Installs may fail.\e[0m"; read; fi
 
-	echo -e "\e[1;33m[*] Running 'updatedb'\e[0m\n"
+	echo -e "\e[1;33m[*] Running 'updatedb', if it fails install 'locate' from repos and try again\e[0m\n"
 	updatedb
 
-	reqs="wget gcc gcc-c++ mingw32-gcc mingw32-binutils xterm cmake autoconf python-devel"
+	reqs="autoconf cmake gcc gcc-c++ mingw32-binutils mingw32-gcc python-devel wget xterm"
         for i in $reqs; do
                 if [ -z $(rpm -qa $i) 2>/dev/null ]; then
                         echo -e "\e[1;31m[-] $i is not installed, will attempt to install from repos\e[0m"
@@ -283,17 +283,17 @@ update=1
 echo -e "\n\e[1;33m[*] Downloading Metasploit from metasploit.com, this will take a while to complete\e[0m"
 
 if [ $(uname -m) == "x86_64" ]; then
-	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-x64-installer.run -O /tmp/metasploit-latest-linux-x64-installer.run
+	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-x64-installer.run -O /tmp/smbexec-inst/metasploit-latest-linux-x64-installer.run
 	echo -e "\n\e[1;33m[*] The Metasploit installer will walk you through the rest of the process\e[0m"
 	sleep 5
-	chmod 755 /tmp/metasploit-latest-linux-x64-installer.run
-	/tmp/metasploit-latest-linux-x64-installer.run
+	chmod 755 /tmp/smbexec-inst/metasploit-latest-linux-x64-installer.run
+	/tmp/smbexec-inst/metasploit-latest-linux-x64-installer.run
 else
-	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-installer.run -O /tmp/metasploit-latest-linux-installer.run
+	wget http://downloads.metasploit.com/data/releases/metasploit-latest-linux-installer.run -O /tmp/smbexec-inst/metasploit-latest-linux-installer.run
 	echo -e "\n\e[1;33m[*] The Metasploit installer will walk you through the rest of the process\e[0m"
 	sleep 5
-	chmod 755 /tmp/metasploit-latest-linux-installer.run
-	/tmp/metasploit-latest-linux-installer.run
+	chmod 755 /tmp/smbexec-inst/metasploit-latest-linux-installer.run
+	/tmp/smbexec-inst/metasploit-latest-linux-installer.run
 fi
 
 if [ ! -e /usr/local/bin/msfconsole ]; then
@@ -316,11 +316,11 @@ sleep 5
 f_nmapinstall(){
 update=1
 echo -e "\n\e[1;33m[*] Downloading nmap-6.0.1 from nmap.org, this may take a while to complete\e[0m"
-wget http://nmap.org/dist/nmap-6.01.tgz -O /tmp/nmap-6.0.1.tgz
-cd /tmp
-tar xf nmap-6.0.1.tgz
-cd nmap-6.01/
-echo -e "\n\e[1;33m[*] Installing nmap-6.0.1 on your system\e[0m"
+wget http://nmap.org/dist/nmap-6.25.tgz -O /tmp/smbexec-inst/nmap-6.25.tgz
+cd /tmp/smbexec-inst
+tar xf nmap-6.25.tgz
+cd nmap-6.25/
+echo -e "\n\e[1;33m[*] Installing nmap-6.25 on your system\e[0m"
 sleep 3
 ./configure
 make && make install
@@ -329,10 +329,9 @@ if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ]; then
 	echo -e "\e[1;31m[!] Something went wrong, nmap did not install properly\e[0m"
 else
 	echo -e "\n\e[1;32m[+] nmap has been installed...\e[0m"
-fi
-
-if [ ! -e /usr/bin/nmap ]; then
-	ln -f -s /usr/local/bin/nmap /usr/bin/nmap
+		if [ ! -e /usr/bin/nmap ]; then
+			ln -f -s /usr/local/bin/nmap /usr/bin/nmap
+		fi
 fi
 
 sleep 5

@@ -11,13 +11,23 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
+v1.2.6 - 02/25/2013
+ADDED - wce.exe for 64 Bit systems
+FIXED - DA/EA checker did not check for any errors and would falsely state users were on the system that did not exist
+FIXED - Option to just create payload and RC file would continue by launching attack. Now operating as expected
+UPDATE - Now checks the target systems processor architecture in order to use the proper wce.exe (wce-32.exe or wce-64.exe)
+UPDATE - dcc hash file & cleartext password file is only moved into logfolder if not empty (common errors grep'd out)
+UPDATE - source code for samba is now v3.6.12 for compiling smbexeclient binary
+UPDATE - Installer now installs nmap verision 6.25 (Only if nmap is not found on the system. It does not version check)
+
 v1.2.5 - 02/19/2013
-FIXED - Issues with proper mingw identification, especially for 64 Bit systems
+FIXED - Issues with proper mingw identification, especially for 64 Bit systems - Bug reported by Jim Broome
 UPDATE - Installer was updated with extra prereqs for winexe compilation.
 TESTING - Install and execution of smbexec was tested again on Ubuntu 12.04 and Fedora 17 64Bit systems
 
 v1.2.4 - 02/04/2013
 UPDATE - Added UAC functionality. Now you can check systems to see if they have UAC enabled. In addition, you can disable or enable UAC on systems
+
 v1.2.3 - 01/20/2013
 UPDATE - Changed menu layout, was getting crowded on the main page. Combined like tasks.
 FIXED - Hash folder creation wasn't checking for existing folder before trying to create. Resulted in error message.
@@ -30,13 +40,13 @@ UPDATE - If wce.exe is place in the smbexec/progs/ directory it will upload and 
 NOTE: The wce.exe file that exists in the progs directory has been obfuscated and is included in smbexec with written permission from the copyright owner Hernan Ochoa.
 Hernan retains all rights to the Windows Credential Editor and can ask to have the program removed from smbexec distribution at any time. We'd like to than Hernan for letting us include his incredibly awesome tool for distribution.
 
-Windows Credentials Editor v1.3beta (32-bit)
+Windows Credentials Editor v1.3beta
 (c) 2010, 2011, 2012 Amplia Security, Hernan Ochoa
 written by: hernan@ampliasecurity.com
 http://www.ampliasecurity.com
 
 v1.2.0 - 11/30/2012
-FIXED - Script now checks to ensure exe's are compile before running. Alerts user to use installer to compile.
+FIXED - Script now checks to ensure exe's are compiled before running. Alerts user to use installer to compile.
 UPDATE - Added drive and path variables to ntds hash grab function. (No longer hardcoded to C:\Windows\NTDS or C:\Windows\Temp)
 UPDATE - Checks for available diskspace before copying ntds.dit and sys files to the path provided
 UPDATE - Deletes the volume shadow copy created by the ntds hash grab function
@@ -52,16 +62,12 @@ Includes
 - patches to compile binaries
 - source for samba-3.6.9 and winexe-1.00
 
-Just run the installer and you should be good to go! If not email me....jbrav.hax@gmail.com
-- Run option #1 to compile binaries before you do anything!
-*** If there are no binaries...the program will not work***
-Sounds simple enough
-
+Just run the installer and you should be good to go! If not email me... jbrav.hax@gmail.com
 
 Credit where credit is due:
 * wce.exe - Hernan Ochoa - An incredible tool that mimikatz CANNOT touch! - http://www.ampliasecurity.com
 * smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
-	- Patch updated for Samba 3.6.6 by exfil (Emilio Escobar)
+	- Patch updated for Samba 3.6.12 by exfil (Emilio Escobar)
 * vanish.sh - Original concept Astr0baby stable version edits Vanish3r -> http://www.securitylabs.in/2011/12/easy-bypass-av-and-firewall.html
 * www.samba.org
 * winexe - ahajda -> http://sourceforge.net/users/ahajda

