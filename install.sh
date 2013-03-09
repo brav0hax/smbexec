@@ -14,15 +14,15 @@ f_debian(){
 
 	echo -e "\e[1;33m[*] Running 'updatedb' if it fails then install 'locate' from repos and try again\e[0m\n"
 	updatedb
-	
+
+	echo -e "\e[1;33m[*] Installing mingw requirements...\e[0m"
+
 	#Install the correct mingw
 	mingw64=$(apt-cache search gcc-mingw-w64)
-	
+
 	if [ -z "$mingw64" ]; then
-		echo -e "\e[1;33m[*] Installing mingw requirements for 32 bit and older 64bit systems...\e[0m"
 		apt-get install -y mingw32-runtime gcc-mingw32 mingw32-binutils &> /tmp/smbexec-inst/checkinstall
 	else
-		echo -e "\e[1;33m[*] Installing mingw requirements for modern 64 bit systems...\e[0m"
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 	
@@ -190,6 +190,8 @@ f_microsoft(){
 ##################################################
 f_install(){
 
+current_path=$PWD
+
 if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 
 	while [[ $valid != 1 ]]; do
@@ -207,7 +209,7 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 	# Remove the ending slash if it exists in path
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
-	if [ $PWD == $smbexecpath/smbexec ]; then 
+	if [ $current_path == $smbexecpath/smbexec ]; then 
 		echo -e "\e[1;33m[*] OK...keeping the folder where it is...\e[0m"
 		sleep 3
 		chmod 755 $smbexecpath/smbexec/smbexec.sh
@@ -217,7 +219,7 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 		# CD out of folder, mv folder to specified path and create symbolic link
 		cd ..
 		rm -rf $smbexecpath/smbexec > /dev/null
-		mv $PWD/smbexec $smbexecpath/smbexec
+		mv $current_path $smbexecpath/smbexec
 		chmod 755 $smbexecpath/smbexec/smbexec.sh
 		chmod 755 $smbexecpath/smbexec/progs/*
 		ln -f -s $smbexecpath/smbexec/smbexec.sh /usr/bin/smbexec
