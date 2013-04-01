@@ -1,15 +1,18 @@
 ************************************************************
 		      	smbexec
 	A rapid psexec style attack with samba tools
-      Original Concept and Script by Brav0Hax & PureHate
-              Codename - Mommy's Little Monster
-             Gonna pha-q up - PurpleTeam Smash!
+              Codename - Die, Die My Darling
 ************************************************************
 
 Written because we got sick of Metasploit PSExec getting popped
 
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+
+v1.2.7 - 04/01/2013
+FIXED - False positives from Admin check option
+FIXED - Domain Cached Creds login I broke in last release
+UPDATED - The whole look and feel is less gaudy and borrows from msfconsole
 
 v1.2.6 - 02/25/2013
 FIXED - Installer has current path dir hardcoded as smbexec. If the folder is not named smbexec, installer does not mv folder and chmod binaries properly. Thanks to Richard Miller @overflowint for the report and solution.
