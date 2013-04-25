@@ -395,7 +395,7 @@ fi
 }
 f_get_domain_admin_users(){
 if [ ! -s /tmp/smbexec/admins.tmp ]; then
-	${smbexecpath}/smbwinexe --system -U ${SMBDomain}/${j} //${i} "CMD /C net group \"Domain Admins\" /domain && net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/admins.tmp
+	${smbexecpath}/smbwinexe -U ${SMBDomain}/${j} //${i} "CMD /C net group \"Domain Admins\" /domain && net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/admins.tmp
 fi
 admins_list_check=$(cat /tmp/smbexec/admins.tmp |egrep '(error|winexe)')
 if [ -z "${admins_list_check}" ]; then
@@ -403,13 +403,13 @@ if [ -z "${admins_list_check}" ]; then
 fi
 }
 f_get_logged_in_users(){
-${smbexecpath}/smbwinexe --uninstall --system -U ${SMBDomain}/${j} //${i} "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
+${smbexecpath}/smbwinexe -U ${SMBDomain}/${j} //${i} "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
 #win2k doesn't have tasklist - this will hopefully prevent error spewing
 f_tasklisk_check
 
 if [ -z "${tasklist_check}" ]; then
 	cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|tr '[:upper:]' '[:lower:]'|sort -u > /tmp/smbexec/tasklist.sorted
-	${smbexecpath}/smbwinexe --uninstall --system -U ${SMBDomain}/${j} //${i} "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
+	${smbexecpath}/smbwinexe --uninstall -U ${SMBDomain}/${j} //${i} "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
 	cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|cut -d "," -f3|egrep -v '(USERNAME|65536|HASH PASS|ERRDOS)'|tr '[:upper:]' '[:lower:]' > /tmp/smbexec/qwinsta.sorted
 	sort -u /tmp/smbexec/tasklist.sorted /tmp/smbexec/qwinsta.sorted > /tmp/smbexec/loggedin.users
 else

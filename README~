@@ -9,16 +9,13 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
-v1.2.8 - xx/xx/xx
-FIXED - DA check gives system error 5 "Access Denied" changed it to complete the tasks as SYSTEM -> Thx Craig Freyman for bug report and fix
-
-
 v1.2.7 - 04/01/2013
 FIXED - False positives from Admin check option
-FIXED - Domain cached creds logic I brok in last release
-UPDATED - The whole look and feel is less gaudy and borrow heavily from msfconsole
+FIXED - Domain Cached Creds login I broke in last release
+UPDATED - The whole look and feel is less gaudy and borrows from msfconsole
 
 v1.2.6 - 02/25/2013
+FIXED - Installer has current path dir hardcoded as smbexec. If the folder is not named smbexec, installer does not mv folder and chmod binaries properly. Thanks to Richard Miller @overflowint for the report and solution.
 ADDED - wce.exe for 64 Bit systems
 FIXED - DA/EA checker did not check for any errors and would falsely state users were on the system that did not exist
 FIXED - Option to just create payload and RC file would continue by launching attack. Now operating as expected
