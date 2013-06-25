@@ -9,6 +9,10 @@ Written because we got sick of Metasploit PSExec getting popped
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
+v1.2.8.1 - 06/24/2013
+UPDATED - Added 'make' install check since libesedb and nmap rely on it for compile
+UPDATED - DA/EA checker still not working as I wanted, ugly grep hacks to make it perform better.
+ 
 v1.2.8 - 05/22/2013
 ADDED - If you have crypter.exe installed on your system it will encrypt your payload after obfuscation. (uncomment line 46)
 ADDED - Will prompt you if you'd like to execute payload as user or SYSTEM
