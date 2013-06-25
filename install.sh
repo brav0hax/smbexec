@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 02/23/2013
+# Last updated 06/24/2013
 
 ##################################################
 f_debian(){
@@ -14,19 +14,19 @@ f_debian(){
 
 	echo -e "\e[1;33m[*] Running 'updatedb' if it fails then install 'locate' from repos and try again\e[0m\n"
 	updatedb
-
-	echo -e "\e[1;33m[*] Installing mingw requirements...\e[0m"
-
+	
 	#Install the correct mingw
 	mingw64=$(apt-cache search gcc-mingw-w64)
-
+	
 	if [ -z "$mingw64" ]; then
+		echo -e "\e[1;33m[*] Installing mingw requirements for 32 bit and older 64bit systems...\e[0m"
 		apt-get install -y mingw32-runtime gcc-mingw32 mingw32-binutils &> /tmp/smbexec-inst/checkinstall
 	else
+		echo -e "\e[1;33m[*] Installing mingw requirements for modern 64 bit systems...\e[0m"
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 	
-	reqs="autoconf cmake g++ gcc python-dev wget xterm"
+	reqs="autoconf cmake g++ gcc make python-dev wget xterm"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
 		isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")
@@ -190,8 +190,6 @@ f_microsoft(){
 ##################################################
 f_install(){
 
-current_path=$PWD
-
 if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 
 	while [[ $valid != 1 ]]; do
@@ -209,7 +207,7 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 	# Remove the ending slash if it exists in path
 	smbexecpath=$(echo $smbexecpath | sed 's/\/$//g')
 
-	if [ $current_path == $smbexecpath/smbexec ]; then 
+	if [ $PWD == $smbexecpath/smbexec ]; then 
 		echo -e "\e[1;33m[*] OK...keeping the folder where it is...\e[0m"
 		sleep 3
 		chmod 755 $smbexecpath/smbexec/smbexec.sh
@@ -219,7 +217,7 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 		# CD out of folder, mv folder to specified path and create symbolic link
 		cd ..
 		rm -rf $smbexecpath/smbexec > /dev/null
-		mv $current_path $smbexecpath/smbexec
+		mv $PWD/smbexec $smbexecpath/smbexec
 		chmod 755 $smbexecpath/smbexec/smbexec.sh
 		chmod 755 $smbexecpath/smbexec/progs/*
 		ln -f -s $smbexecpath/smbexec/smbexec.sh /usr/bin/smbexec
@@ -260,9 +258,9 @@ esedbexportinstall=$(locate -l 1 -b "\esedbexport")
 if [ ! -z "$esedbexportinstall" ]; then
 	echo -e "\e[1;32m[+] I found esedbexport on your system\e[0m"
 else
-	echo -e "\n\e[1;33m[*] Downloading libesedb from developers google drive...\e[0m"
+	echo -e "\n\e[1;33m[*] Downloading libesedb from googlecode.com...\e[0m"
 	sleep 2
-	wget https://googledrive.com/host/0B3fBvzttpiiSN082cmxsbHB0anc/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
+	wget http://libesedb.googlecode.com/files/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
 	tar -zxf /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec-inst/
 	currentpath=$PWD
 	echo -e "\n\e[1;33m[*] Compiling esedbtools...\e[0m"

