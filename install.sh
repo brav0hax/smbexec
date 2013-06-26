@@ -258,9 +258,9 @@ esedbexportinstall=$(locate -l 1 -b "\esedbexport")
 if [ ! -z "$esedbexportinstall" ]; then
 	echo -e "\e[1;32m[+] I found esedbexport on your system\e[0m"
 else
-	echo -e "\n\e[1;33m[*] Downloading libesedb from googlecode.com...\e[0m"
+	echo -e "\n\e[1;33m[*] Downloading libesedb from authors google docs drive...\e[0m"
 	sleep 2
-	wget https://googledrive.com/host/0B3fBvzttpiiSN082cmxsbHB0anc/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
+	wget --no-check-certificate https://googledrive.com/host/0B3fBvzttpiiSN082cmxsbHB0anc/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
 	tar -zxf /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec-inst/
 	currentpath=$PWD
 	echo -e "\n\e[1;33m[*] Compiling esedbtools...\e[0m"
