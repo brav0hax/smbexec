@@ -260,7 +260,7 @@ if [ ! -z "$esedbexportinstall" ]; then
 else
 	echo -e "\n\e[1;33m[*] Downloading libesedb from googlecode.com...\e[0m"
 	sleep 2
-	wget http://libesedb.googlecode.com/files/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
+	wget https://googledrive.com/host/0B3fBvzttpiiSN082cmxsbHB0anc/libesedb-alpha-20120102.tar.gz -O /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz
 	tar -zxf /tmp/smbexec-inst/libesedb-alpha-20120102.tar.gz -C /tmp/smbexec-inst/
 	currentpath=$PWD
 	echo -e "\n\e[1;33m[*] Compiling esedbtools...\e[0m"
