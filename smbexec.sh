@@ -24,7 +24,7 @@
 #
 #############################################################################################
 
-version="1.2.8.1"
+version="1.2.8.2"
 codename="Take On Me"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
@@ -82,7 +82,6 @@ if [[ "${dirty}" == "1" ]];then
 	f_cleanup
 fi
 
-if [ -z "$(ls ${logfldr})" ];then rm -rf ${logfldr}; fi
 rm -rf /tmp/smbexec/
 clear
 f_freshstart
@@ -313,7 +312,7 @@ f_mainmenu
 f_get_user_list(){
 unset user_list
 if [[ -e "${logfldr}/hashes/DC/cred.lst" ]]; then p="[${logfldr}/hashes/DC/cred.lst]"; fi
-read -e -p " Please provide the path to your credential list ${p}: " user_list
+read -e -p " Please provide the path to your credential list (user<tab>pass or hash) ${p}: " user_list
 if [ -z ${user_list} ]; then user_list="${logfldr}/hashes/DC/cred.lst"; fi
 if [ ! -e ${user_list} ]; then echo -e "\e[1;31m[-]\e[0m The file provided does not exist..."; f_get_user_list; fi
 unset p
@@ -1137,12 +1136,32 @@ f_freshstart
 f_mainmenu
 }
 f_freshstart(){
+
 rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
 # unset variables to prevent problems in the loop
 vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da sysenumchoice sysexpchoice"
 for var in ${vars}; do
 	unset ${var}
 done
+
+if [ -z "$(ls -A ${logfldr})" ];then
+	rm -rf ${logfldr}
+	logfldr=${PWD}/$(date +%F-%H%M)-smbexec
+	mkdir ${logfldr}
+fi
+
+}
+f_freshstop(){
+rm -rf /tmp/smbexec/ # cleanup all the stuff we put in the temp dir
+# unset variables to prevent problems in the loop
+vars="badshare cemptyrpath ConnCheck connrefused enumber i isadmin lhost listener logonfail LPATH machine mainchoice oddshare onelettershare p paychoice payload port rcpath RHOSTS RPATH seed SHARERHOSTS SMBDomain SMBFilename SMBHASH SMBPass SMBUser superoddshare tf unreachable datatable linktable check_for_da sysenumchoice sysexpchoice"
+for var in ${vars}; do
+	unset ${var}
+done
+if [[ -z $(ls -A ${logfldr}) ]];then rm -rf ${logfldr}; fi
+clear
+exit
+
 }
 f_system_enumeration_menu(){
 clear
@@ -1216,7 +1235,7 @@ case "${mainchoice}" in
 	1) f_system_enumeration_menu;;
 	2) f_system_exploitation_menu;;
 	3) f_obtain_hashes_menu;;
-	4) if [[ -z $(ls ${logfldr}) ]];then rm -rf ${logfldr}; fi;clear;f_freshstart;exit;;
+	4) f_freshstop;;
 	RBF) f_rbf;;
 	*) f_mainmenu
 esac
