@@ -24,7 +24,7 @@
 #
 #############################################################################################
 
-version="1.2.8.2"
+version="1.2.8.3"
 codename="Take On Me"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
@@ -777,7 +777,7 @@ f_dsusers(){
 echo -e "\n\e[1;34m[*]\e[0m Extracting hashes, please standby..."
 sleep 2
 dsuserspath=$(locate -l 1 -b "\dsusers.py"| sed 's,/*[^/]\+/*$,,')
-python ${dsuserspath}/dsusers.py /tmp/smbexec/ntds.dit.export/${datatable} /tmp/smbexec/ntds.dit.export/${linktable} --passwordhashes ${logfldr}/hashes/DController/sys --passwordhistory ${logfldr}/hashes/DC/sys > ${logfldr}/hashes/DC/ntds.output
+python ${dsuserspath}/dsusers.py /tmp/smbexec/ntds.dit.export/${datatable} /tmp/smbexec/ntds.dit.export/${linktable} --passwordhashes ${logfldr}/hashes/DC/sys --passwordhistory ${logfldr}/hashes/DC/sys > ${logfldr}/hashes/DC/ntds.output
 ${smbexecpath}/ntdspwdump.py ${logfldr}/hashes/DC/ntds.output > ${logfldr}/hashes/DC/${SMBDomain}-dc-hashes.lst
 set -f	# turn off globbing
 IFS='
