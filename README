@@ -1,13 +1,23 @@
 ************************************************************
 		      	smbexec
 	A rapid psexec style attack with samba tools
-              Codename - Take On Me
+              Codename - Happy Accidents
 ************************************************************
 
-Written because we got sick of Metasploit PSExec getting popped
+Written because we got sick of Metasploit PSExec getting popped by service protection by most AVs
 
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+
+v 1.2.9 - 07/15/2013
+UPDATED - wce has been updated with a universal binary with new version released by the developer (v1.41) as usual its obfuscated ;)
+FIXED - on occasion when a Ctrl-C is inititated, if the smbexec proj folder is empty it will delete it and not recreate
+FIXED - Typo in the f_dsusers function for sys file path
+
+Windows Credentials Editor v1.41beta
+(c) 2010, 2011, 2012, 2013 Amplia Security, Hernan Ochoa
+written by: hernan@ampliasecurity.com
+http://www.ampliasecurity.com
 
 v1.2.8.1 - 06/24/2013
 UPDATED - Added 'make' install check since libesedb and nmap rely on it for compile

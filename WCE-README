@@ -1,13 +1,28 @@
-Windows Credentials Editor v1.3beta
-(c) 2010, 2011, 2012 Amplia Security, Hernan Ochoa
+Windows Credentials Editor v1.41beta (Universal Binary)
+(c) 2010, 2011, 2012, 2013 Amplia Security, Hernan Ochoa
 written by: hernan@ampliasecurity.com
 http://www.ampliasecurity.com
 -------------------------------------------------------------
 
+Why is this a "Universal Binary" ?
+---------------------------------
+
+The wce.exe file in this package is a wrapper that detects at runtime if it
+is running on a 32 bit or 64 bit version of Windows, dumps the appropiate version of WCE and
+executes it.
+
+This "universal binary" has many practical advantages; among others, it saves the user from 
+having to use two different .exe files (WCE for 32bit systems and WCE for 64bit systems) and from
+manually or programmatically detecting which one should be used. This makes scripting easier, for example, 
+to use wce.exe against massive amounts of heterogenous systems whose architecture is unknown. 
+The price to pay is a bigger executable file, which should not be an issue.
+
+(Thank you Kevin Mitnick for the idea!)
+
 Abstract
 ----------
 
-Windows Credentials Editor (WCE) v1.3beta allows you to
+Windows Credentials Editor (WCE) v1.41beta allows you to
 
 NTLM authentication:
 
@@ -29,7 +44,7 @@ Digest Authentication:
 
 Supported Platforms
 -------------------
-Windows Credentials Editor supports Windows XP, 2003, Vista, 7 and 2008.
+Windows Credentials Editor supports Windows XP, 2003, Vista, 7, 2008 and 8.
 
 
 Requirements
@@ -66,8 +81,10 @@ Options:
 	-f		Force 'safe mode'.
         -g              Generate LM & NT Hash.
                         Parameters: <password>.
-        -K              Dump Kerberos tickets to file (unix & 'windows wce' format)
-        -k              Read Kerberos tickets from file and insert into Windows cache
+        -K              Dump Kerberos tickets to file (unix & 'windows wce' form
+at)
+        -k              Read Kerberos tickets from file and insert into Windows
+cache
 	-w		Dump cleartext passwords stored by the digest authentication package
 	-v		verbose output.
 
@@ -76,7 +93,7 @@ Examples:
 	* List current logon sessions
 
 C:\>wce -l
-WCE v1.0 (Windows Credentials Editor) - (c) 2010 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 meme:meme:11111111111111111111111111111111:11111111111111111111111111111111
@@ -84,7 +101,7 @@ meme:meme:11111111111111111111111111111111:11111111111111111111111111111111
 	* List current logon sessions with verbose output enabled
 
 C:\>wce -l -v
-WCE v1.0 (Windows Credentials Editor) - (c) 2010 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Current Logon Session LUID: 00064081h
@@ -111,7 +128,7 @@ WORKGROUP\WIN-REK2HG6EBIS$:NTLM
 	* Change NTLM credentials associated with current logon session
 
 C:\>wce -s auser:adomain:99999999999999999999999999999999:99999999999999999999999999999999
-WCE v1.0 (Windows Credentials Editor) - (c) 2010 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Changing NTLM credentials of current logon session (00064081h) to:
@@ -124,8 +141,7 @@ NTLM credentials successfully changed!
 	* Add/Change NTLM credentials of a logon session (not the current one)
 
 C:\>wce -i 3e5 -s auser:adomain:99999999999999999999999999999999:99999999999999999999999999999999 
-WCE v1.0 (Windows Credentials Editor) - (c) 2010 Amplia Security - by Hernan Och
-oa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Changing NTLM credentials of logon session 000003E5h to:
@@ -138,7 +154,7 @@ NTLM credentials successfully changed!
 	* Delete NTLM credentials associated with a logon session
 
 C:\>wce -d 3e5
-WCE v1.0 (Windows Credentials Editor) - (c) 2010 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 NTLM credentials successfully deleted!
@@ -161,9 +177,7 @@ C:\>wce -r5
 	* Generate LM & NT Hash.
      
 C:\>wce -g test
-
-WCE v1.2 (Windows Credentials Editor) - (c) 2010,2011 Amplia Security - by Herna
-n Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Password:   test
@@ -172,8 +186,7 @@ Hashes:     01FC5A6BE7BC6929AAD3B435B51404EE:0CB6948805F797BF2A82807973B89537
 	* Dump Kerberos tickets to file (unix & 'windows wce' format)      
 
 C:\>wce -K
-WCE v1.2 (Windows Credentials Editor) - (c) 2010,2011 Amplia Security - by Herna
-n Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Converting and saving TGT in UNIX format to file wce_ccache...
@@ -185,8 +198,7 @@ Done!
 	* Read Kerberos tickets from file and insert into Windows cache
 
 C:\>wce -k
-WCE v1.2 (Windows Credentials Editor) - (c) 2010,2011 Amplia Security - by Herna
-n Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010-2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 Reading kerberos tickets from file 'wce_krbtkts'...
@@ -196,24 +208,12 @@ Done!
        * Dump cleartext passwords stored by the Digest Authentication package
 
 C:\>wce -w
-WCE v1.3beta (Windows Credentials Editor) - (c) 2010,2011,2012 Amplia Security -
- by Hernan Ochoa (hernan@ampliasecurity.com)
+WCE v1.41beta (Windows Credentials Editor) - (c) 2010,2011,2012,2013 Amplia Security - by Hernan Ochoa (hernan@ampliasecurity.com)
 Use -h for help.
 
 test\MYDOMAIN:mypass1234
 NETWORK SERVICE\WORKGROUP:test
 
-
-
-GETLSASRVADDR.EXE
------------------
-This tool can be used to obtain automatically needed addresses for WCE
-to be able to read logon sessions and NTLM credentials from memory.
-
-Addresses obtained can then be used with WCE using the -A switch.
-
-This tool requires the dlls symsrv.dll and dbghelp.dll available from the
-"Debugging Tools for Windows" package.
 
 
 Additional Information
