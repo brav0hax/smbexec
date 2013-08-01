@@ -9,7 +9,10 @@ Written because we got sick of Metasploit PSExec getting popped by service prote
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
 
-v 1.2.9 - 07/15/2013
+v1.2.9.1 - 07/31/2013
+ADDED - r3dy (pentestgeek.com) created a custom cachedump.rb that is a standalone tool to extract dcc's. This tool extracts non-vista and vista style cached creds. Built based off the cachedump metasploit module create by Carlos Perez (DarkOperator)
+
+v1.2.9 - 07/15/2013
 UPDATED - wce has been updated with a universal binary with new version released by the developer (v1.41) as usual its obfuscated ;)
 FIXED - on occasion when a Ctrl-C is inititated, if the smbexec proj folder is empty it will delete it and not recreate
 FIXED - Typo in the f_dsusers function for sys file path

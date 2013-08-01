@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 06/24/2013
+# Last updated 07/15/2013
 
 ##################################################
 f_debian(){
@@ -19,10 +19,10 @@ f_debian(){
 	mingw64=$(apt-cache search gcc-mingw-w64)
 	
 	if [ -z "$mingw64" ]; then
-		echo -e "\e[1;33m[*] Installing mingw requirements for 32 bit and older 64bit systems...\e[0m"
+		echo -e "\e[1;33m[*] Installing mingw requirements...\e[0m"
 		apt-get install -y mingw32-runtime gcc-mingw32 mingw32-binutils &> /tmp/smbexec-inst/checkinstall
 	else
-		echo -e "\e[1;33m[*] Installing mingw requirements for modern 64 bit systems...\e[0m"
+		echo -e "\e[1;33m[*] Installing mingw requirements...\e[0m"
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 	
