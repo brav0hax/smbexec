@@ -1,13 +1,18 @@
 ************************************************************
-		      	smbexec
-	A rapid psexec style attack with samba tools
-              Codename - Happy Accidents
+                          smbexec
+        A rapid psexec style attack with samba tools
+     Original Concept and Script by Brav0Hax & PureHate
+   Ported to ruby and modified by Smilingraccoon and Zeknox
+                  Codename - Machiavellian
 ************************************************************
 
-Written because we got sick of Metasploit PSExec getting popped by service protection by most AVs
+Written because we got sick of Metasploit PSExec getting popped
 
 Special thanks to Carnal0wnage who's blog inspired us to go this route.
 http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+
+v2.0 - 10/17/2013
+UPDATED - Rubified ;)
 
 v1.2.9.1 - 07/31/2013
 ADDED - r3dy (pentestgeek.com) created a custom cachedump.rb that is a standalone tool to extract dcc's. This tool extracts non-vista and vista style cached creds. Built based off the cachedump metasploit module create by Carlos Perez (DarkOperator)
@@ -92,6 +97,8 @@ Includes
 Just run the installer and you should be good to go! If not email me... jbrav.hax@gmail.com
 
 Credit where credit is due:
+* b00stfr3ak - For multiple pull requests and code contributions
+* Pasv - For the kick ass updates to the file finder module
 * wce.exe - Hernan Ochoa - An incredible tool that mimikatz CANNOT touch! - http://www.ampliasecurity.com
 * smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
 	- Patch updated for Samba 3.6.12 by exfil (Emilio Escobar)

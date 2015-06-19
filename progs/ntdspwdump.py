@@ -8,10 +8,6 @@ NTDSXtract is a framework developed by Csaba Barta in order to provide the
 community with a solution to extract forensically important information from
 the main database of Microsoft Active Directory (NTDS.DIT),
 http://csababarta.com/en/ntdsxtract.html
-
-Script create by Bernardo Damele
-
-I edited file to replace NO PASSWORD with blank LM hash
 """
 
 import os

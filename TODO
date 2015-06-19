@@ -1,0 +1,76 @@
+TO FIX:
+	lib_smb.rb
+		should qwinsta be run in logged in users? tasklist should show the events
+
+	guide.rb
+
+	poet.rb
+		figure out why the store_* methods format differently...
+		Add method to auto append host?
+			def print_good(text); puts "\e[1;32m[+]\e[0m #{work_unit[2].ljust(15)} - #{text}"; end
+
+	menu.rb
+
+	remotelogin.rb
+		WMIC instead of winexe to prevent service installation
+		Do we need to pass a hash back or just an array? How bout 2 arrays, one with remote login, one failed?
+		create a text file per user with all hosts they have access for furture attacks
+
+	create README.txt
+		Required gems:
+			netaddr
+			ruby-nmap
+		howto?
+		install script?
+
+	checkda.rb
+		Run domain group enum in setup somehow, not repeatedly. 
+
+	hashesworkstation.rb
+		look into wmis
+		switch to stand alone cache dump
+
+	hashesdc.rb
+		add in banner for # domain hashes dumped
+		limit the IF EXISTS calls to one winexe, use && and two diff echoes
+
+	utils.rb
+		redo into smaller libs?
+
+
+	smbexec.yml
+		add stop on success/logon failure check
+
+
+MODULES to create: (and get better names for the files)
+	Hashdump
+	Expliotation
+		powershell alphanumeric
+		netntlm downgrade + lnk drop
+		unc injection
+		exflitration detection
+	Enumeration
+		disk quota
+
+
+Extended goals beyond initial rewrite
+	Create custom SMB communication class, remove external binary dependancies
+	test other services with creds (sharepoint? ssh? etc)
+	Scanners for windows priv escalation (NOT exploit but bad permissions, misconfig services, etc)
+	Check for cached credentails
+	Persistence module (across x boxes)
+	Alert/time based checker for user logins on devices with access (Or wce in listen mode?)
+		http://carnal0wnage.attackresearch.com/2013/09/stealing-passwords-every-time-they.html
+	Kerberos token collection on owned box with relay attacks?
+	Remove ntdspwdump.py dependancy, rewrite in ruby
+	*** gem install rex (metasploit dependencies) to allow for psexec command?
+		http://www.room362.com/blog/2012/10/15/pass-the-hash-wo-metasploit-part-2.html
+	Session dump integration for cleartext dumping without binaries
+		http://www.room362.com/blog/2013/4/8/sessiondump-meterpreter-extension.html
+	powershell tricks
+		look into making things simplier/less calls, redo hashdump so its only one call?
+	recursive cred check
+	dump browser history/cookies?
+	screenshots/keyloggers?
+	incognito?
+	run command module

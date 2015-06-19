@@ -1,0 +1,20 @@
+Original Concept and Script by Brav0Hax & Purehate
+Ported to ruby and modified by Smilingraccoon and Zeknox
+
+http://www.pentestgeek.com
+
+Special thanks to Carnal0wnage who's blog inspired this project.
+http://carnal0wnage.attackresearch.com/2012/01/psexec-fail-upload-and-exec-instead.html
+
+Credit where credit is due:
+* wce.exe - Hernan Ochoa - An incredible tool that mimikatz CANNOT touch! - http://www.ampliasecurity.com
+* smbclient & winexe Hash Passing patch - JoMo-kun -> http://www.foofus.net/~jmk/passhash.html
+	- Patch updated for Samba 3.6.12 by exfil (Emilio Escobar)
+* vanish.sh - Original concept Astr0baby stable version edits Vanish3r -> http://www.securitylabs.in/2011/12/easy-bypass-av-and-firewall.html
+* www.samba.org
+* winexe - ahajda -> http://sourceforge.net/users/ahajda
+* Metasploit - www.metasploit.com (Thank you HD and team!)
+* Nmap - nmap.org (Thank you Fydor!)
+* Creddump - Brendan Dolan-Gavitt - http://code.google.com/p/creddump/
+* NTDSXtract - Csaba Barta - http://www.ntdsxtract.com/
+* libesedb - Joachim Metz - http://libesedb.googlecode.com/

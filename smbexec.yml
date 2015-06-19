@@ -1,0 +1,62 @@
+# Default timeout in seconds for threads, mainly used in enumeration modules
+# 0 disabled timeout
+timeout: 15
+
+# Default number of threads
+threads: 10
+
+# Default domain
+domain: LOCALHOST
+
+# Verbose status
+verbose: false
+
+# Use screen instead of xterm to open new windows
+xterm: true
+
+# Set wcedump to false if you do not want it to be used with the hashdump
+wcedump: true
+
+# This will display a brief description of a module within smbexec when a module is selected
+module_description: true
+
+# Uncomment this to change the default logging folder (log folder within approot)
+# log: /enter/log/dir
+
+# Port scan - Determines if smbexec uses nmap or a simple TCP full connect scan via ruby
+nmap: true
+
+# Set to true for more detailed logs within the debug folder
+debug_mode: false
+
+# Stealth mode settings, enforces one thread, randomize hosts, and adds random time delays between hosts scanned
+stealth_mode:
+  # Time in seconds
+  minimum_time_between: 600
+  maximum_time_between: 2700
+
+# External dependancies
+dependancies:
+
+# The installer will compile these, option #4
+  smbwinexe:      ./progs/smbwinexe
+  smbexeclient:   ./progs/smbexeclient
+# This is from the pass the hash toolkit
+# on kali: apt-get install passing-the-hash
+# or from: http://code.google.com/p/passing-the-hash/downloads/list
+  smbwmic:        /usr/bin/pth-wmic
+
+  esedbexport:    /opt/esedbtools/esedbexport
+  mingw:          /usr/bin/i686-w64-mingw32-gcc
+  wce:            ./progs/wce.exe
+
+  ntdspwdump:     ./progs/ntdspwdump.py
+  dsusers:        /opt/NTDSXtract/dsusers.py
+
+  #SSL Certs
+  crt:            ./certs/server.crt
+  key:            ./certs/server.key
+
+# Optional crypter.exe for payload packing/protecting
+# http://nullsecurity.net/tools/binary.html
+#  crypter: /opt/Hyperion-1.0/crypter.exe
