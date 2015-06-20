@@ -311,11 +311,13 @@ class Cachedump
 			s.primaryGroupId,
 			relativeId.join(' '),
 		]
-
-		return "#{username.downcase}:#{hash.unpack("H*")[0]}:#{dnsDomainName.downcase}:#{logonDomainName.downcase}\n"
+		# Moved formating to oclHashcat format, mscash2 format changed
+		if( @vista == 1 )
+			return "$DCC2$10240##{username.downcase}##{hash.unpack("H*")[0]}\n"
+		else
+			return "#{hash.unpack("H*")[0]}:#{username.downcase}\n"
+		end
 	end
-
-
 
 	# Code sampled from post/windows/gather/cachedump.rb
 	def parse_cache_entry(cache_data)
