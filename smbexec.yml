@@ -38,20 +38,19 @@ stealth_mode:
 # External dependancies
 dependancies:
 
-# The installer will compile these, option #4
-  smbwinexe:      ./progs/smbwinexe
-  smbexeclient:   ./progs/smbexeclient
 # This is from the pass the hash toolkit
 # on kali: apt-get install passing-the-hash
 # or from: http://code.google.com/p/passing-the-hash/downloads/list
-  smbwmic:        /usr/bin/pth-wmic
+  smbwinexe:		/usr/bin/pth-winexe
+  smbexeclient:		/usr/bin/pth-smbclient
+  smbwmic:			/usr/bin/pth-wmic
 
-  esedbexport:    /opt/esedbtools/esedbexport
-  mingw:          /usr/bin/i686-w64-mingw32-gcc
-  wce:            ./progs/wce.exe
-
-  ntdspwdump:     ./progs/ntdspwdump.py
-  dsusers:        /opt/NTDSXtract/dsusers.py
+  esedbexport:		/opt/esedbtools/esedbexport
+  mingw:			/usr/bin/i686-w64-mingw32-gcc
+  wce:				./progs/wce.exe
+  #mimikatz:		Future application :-)
+  ntdspwdump:		./progs/ntdspwdump.py
+  dsusers:			/opt/NTDSXtract/dsusers.py
 
   #SSL Certs
   crt:            ./certs/server.crt

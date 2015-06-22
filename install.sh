@@ -1,6 +1,6 @@
 #!/bin/bash
 # smbexec installer
-# Last updated 09/08/2013
+# Last updated 06/21/2015
 
 ##################################################
 f_debian(){
@@ -26,7 +26,7 @@ f_debian(){
 		apt-get install -y binutils-mingw-w64 gcc-mingw-w64 mingw-w64 mingw-w64-dev &> /tmp/smbexec-inst/checkinstall
 	fi
 
-	reqs="autoconf cmake comerr-dev g++ gcc libtalloc-dev libtevent-dev libpopt-dev libbsd-dev zlib1g-dev libc6-dev make nmap python-dev bundler wget xterm"
+	reqs="bundler gcc libxml2-dev libxslt1-dev make nmap passing-the-hash python-crypto python-pyasn1 wget"
 	for i in $reqs; do
 		dpkg -s "$i" &> /tmp/smbexec-inst/checkinstall
 		isinstalled=$(cat /tmp/smbexec-inst/checkinstall | grep -o "Status: install ok installed")
@@ -50,22 +50,15 @@ f_debian(){
 		fi
         done
 
-	#Required gems via bundle install
-	echo -e "\e[1;34m[*]\e[0m Installing required ruby gems..."
-	bundle install &> /tmp/smbexec-inst/geminstall
-	geminstall=$(cat /tmp/smbexec-inst/geminstall|grep -o 'command not found')
-		if [ -z "$geminstall" ]; then
-			echo -e "\t\e[1;32m[+]\e[0m Gems were successfully installed."
-		else
-			echo -e "\t\e[1;31m[!]\e[0m Something went wrong, unable to install the gems."
-			echo -e "\t\e[1;31m[!]\e[0m If you are using rvm run this command from the smbexec dir when installer completes:"
-			echo -e "\t\e[1;31m[!]\e[0m rvmsudo bundle install"
-		fi
+	#Ruby Gem install
+	f_gembundler
 	#ntds extract for AD hash dumping
 	f_ntdsxtract
 	#libesedb extract for AD hash dumping
 	f_libesedb
-
+	#impacket for wmiexec.py
+	f_impacket
+	
 	if [[ -z $(locate -b "\msfconsole") ]]; then
 		f_metasploitinstall
 	else
@@ -95,8 +88,8 @@ f_rhfedora(){
 
 	echo -e "\e[1;34m[*]\e[0m Running 'updatedb', if it fails install 'locate' from repos and try again\n"
 	updatedb
-
-	reqs="autoconf cmake gcc gcc-c++ mingw32-binutils mingw32-gcc python-devel wget xterm"
+	
+	reqs="gcc libxml libxslt make mingw32-binutils-generic mingw32-gcc nmap python-crypto python-pyasn1 rubygem-bundler wget"
         for i in $reqs; do
                 if [ -z $(rpm -qa $i) 2>/dev/null ]; then
                         echo -e "\e[1;31m[-]\e[0m $i is not installed, will attempt to install from repos"
@@ -112,19 +105,15 @@ f_rhfedora(){
 		    	echo -e "\e[1;32m[+]\e[0m I found $i installed on your system"
 		fi
         done
-
+	
+	#Ruby Gem install
+	f_gembundler
 	#ntds extract for AD hash dumping
 	f_ntdsxtract
 	#libesedb extract for AD hash dumping
 	f_libesedb
-
-	if [ ! -e /usr/bin/nmap ] && [ ! -e /usr/local/bin/nmap ] && [ -z $(rpm -qa nmap) ]; then
-		echo -e "\e[1;31m[-]\e[0m nmap is not installed, will attempt to install from nmap.org"
-		sleep 3
-		f_nmapinstall
-	else
-		echo -e "\e[1;32m[+]\e[0m I found nmap installed on your system"
-	fi
+	#impacket for wmiexec.py
+	f_impacket
 
 	if [[ -z $(locate -b "\msfconsole") ]]; then
 		echo -e "\n\e[1;31m[-]\e[0m Metasploit is not installed, will attempt to install from metasploit.com"
@@ -143,47 +132,6 @@ f_rhfedora(){
 	fi
 
 rm -rf /tmp/smbexec-inst/
-}
-
-##################################################
-f_microsoft(){
-	clear
-	f_Banner
-	echo "Seriously!?!?! smbexec doesn't run on Windows!!!"
-	echo -e "You need to learn you some Linux!\nHere's some links...\n"
-	echo -e "- http://www.ubuntu.com\n- http://www.debian.org\n- http://fedoraproject.org\n- http://www.gentoo.org"
-	echo -e "\nA whole world of awesomness awaits!\n\n"
-
-	echo "                 .88888888:."
-	echo "                88888888.88888."
-	echo "             .8888888888888888."
-	echo "              888888888888888888"
-	echo "              88' _\`88'_  \`88888"
-	echo "              88 88 88 88  88888"
-	echo "              88_88_::_88_:88888"
-	echo "              88:::,::,:::::8888"
-	echo "              88\`:::::::::'\`8888"
-	echo "             .88  \`::::'    8:88."
-	echo "            8888            \`8:888." 
-	echo "          .8888'             \`888888." 
-	echo "         .8888:..  .::.  ...:'8888888:." 
-	echo "        .8888.'     :'     \`'::\`88:88888" 
-	echo "       .8888        '         \`.888:8888." 
-	echo "      888:8         .           888:88888 "
-	echo "    .888:88        .:           888:88888:" 
-	echo "    8888888.       ::           88:888888" 
-	echo "    \`.::.888.      ::          .88888888" 
-	echo "   .::::::.888.    ::         :::\`8888'.:." 
-	echo "  ::::::::::.888   '         .::::::::::::" 
-	echo "  ::::::::::::.8    '      .:8::::::::::::." 
-	echo " .::::::::::::::.        .:888::::::::::::: "
-	echo " :::::::::::::::88:.__..:88888:::::::::::'" 
-	echo "  \`'.:::::::::::88888888888.88:::::::::'" 
-	echo "        \`':::_:' -- '' -'-' \`':_::::'\` "
-
-	read
-
-	f_mainmenu
 }
 
 ##################################################
@@ -230,17 +178,34 @@ if [ ! -e /tmp/smbexec-inst/ ]; then mkdir /tmp/smbexec-inst/; fi
 }
 
 ##################################################
+f_gembundler(){
+	currentpath=$PWD
+	echo -e "\e[1;34m[*]\e[0m Installing required ruby gems..."
+	cd $smbexecpath/smbexec
+	bundle install &> /tmp/smbexec-inst/geminstall
+	geminstall=$(cat /tmp/smbexec-inst/geminstall|grep -o 'command not found')
+		if [ -z "$geminstall" ]; then
+			echo -e "\t\e[1;32m[+]\e[0m Gems were successfully installed."
+		else
+			echo -e "\t\e[1;31m[!]\e[0m Something went wrong, unable to install the gems."
+			echo -e "\t\e[1;31m[!]\e[0m If you are using rvm run this command from the smbexec dir when installer completes:"
+			echo -e "\t\e[1;31m[!]\e[0m rvmsudo bundle install"
+		fi
+	cd ${currentpath}
+	currentpath=' '
+}
+##################################################
 f_ntdsxtract(){
 NTDSXtractinstall=$(locate -l 1 -b "\dsusers.py")
 
 if [ ! -z "$NTDSXtractinstall" ]; then
 	echo -e "\e[1;32m[+]\e[0m I found NTDSXtract on your system"
 else
-	echo -e "\n\e[1;34m[*]\e[0m Downloading NTDSXTRACT from ntdsxtract.com..."
+	echo -e "\n\e[1;34m[*]\e[0m Downloading NTDSXTRACT from github..."
 	sleep 2
-	wget http://www.ntdsxtract.com/downloads/ntdsxtract/ntdsxtract_v1_0.zip -O /tmp/smbexec-inst/ntdsxtract_v1_0.zip
-	unzip /tmp/smbexec-inst/ntdsxtract_v1_0.zip -d /tmp/smbexec-inst/
-	mv /tmp/smbexec-inst/NTDSXtract\ 1.0 /opt/NTDSXtract
+	wget https://github.com/csababarta/ntdsxtract/archive/master.zip -O /tmp/smbexec-inst/ntdsxtract.zip
+	unzip /tmp/smbexec-inst/ntdsxtract.zip -d /tmp/smbexec-inst/
+	mv /tmp/smbexec-inst/ntdsxtract-master /opt/NTDSXtract
 	if [ -e /opt/NTDSXtract/dsusers.py ]; then
 		echo -e "\n\e[1;32m[+]\e[0m NTDSXtract has been installed..."
 	else
@@ -266,7 +231,7 @@ else
 	echo -e "\n\e[1;34m[*]\e[0m Compiling esedbtools..."
 	sleep 2
 	cd /tmp/smbexec-inst/libesedb-20120102/
-	./configure --enable-static-executables && make
+	./configure --enable-static-executables=yes && make
 	mv /tmp/smbexec-inst/libesedb-20120102/esedbtools /opt/esedbtools
 	cd "$currentpath"
 	if [ -e /opt/esedbtools/esedbexport ] && [ -x /opt/esedbtools/esedbexport ]; then
@@ -274,6 +239,33 @@ else
 	else
 		echo -e "\e[1;31m[!]\e[0m esedbtools didn't install properly. You may need to do it manually"
 	fi
+	currentpath=' '
+fi
+}
+
+##################################################
+f_impacket(){
+impacketinstall=$(which wmiexec.py)
+
+if [ ! -z "$impacketinstall" ]; then
+	echo -e "\e[1;32m[+]\e[0m I found Impacket on your system"
+else
+	echo -e "\n\e[1;34m[*]\e[0m Downloading Impacket from github..."
+	sleep 2
+	wget https://github.com/CoreSecurity/impacket/archive/impacket_0_9_13.zip -O /tmp/smbexec-inst/impacket.zip
+	unzip /tmp/smbexec-inst/impacket.zip -d /tmp/smbexec-inst/
+	mv /tmp/smbexec-inst/impacket-impacket_0_9_13 /opt/impacket
+	currentpath=$PWD
+	cd /opt/impacket/
+	python setup.py install
+	cd ${currentpath}
+	impacketinstall=$(which wmiexec.py)
+	if [ ! -z "$impacketinstall" ]; then
+		echo -e "\n\e[1;32m[+]\e[0m Impacket has been installed..."
+	else
+		echo -e "\e[1;31m[!]\e[0m Impacket didn't install properly. You may need to do it manually"
+	fi
+	currentpath=' '
 fi
 }
 
@@ -313,80 +305,6 @@ sleep 5
 }
 
 ##################################################
-f_compilesmbclient(){
-
-if [ ! -d /tmp/smbexec-inst ]; then mkdir /tmp/smbexec-inst;fi
-
-if [ -e $path/progs/smbexeclient ]; then
-	echo -e "\n\e[1;32m[+]\e[0m Looks like smbexeclient is already compiled, moving to smbwinexe compilation..."
-	sleep 3
-else
-	echo -e "\n\e[1;34m[*]\e[0m Extracting samba..."
-	sleep 2
-	tar -xf $path/sources/samba.tar.gz -C /tmp/smbexec-inst/ > /dev/null 2>&1
-	echo -e "\n\e[1;34m[*]\e[0m Compiling smbexeclient, this may take a while..."
-	sleep 2
-	cd /tmp/smbexec-inst/samba/source3 && ./configure.developer && make bin/smbclient
-	cp /tmp/smbexec-inst/samba/source3/bin/smbclient $path/progs/smbexeclient
-	make clean &> /dev/null
-	cd $path
-
-	if [ -e $path/progs/smbexeclient ]; then
-		echo -e "\n\e[1;32m[+]\e[0m smbexeclient has been compiled and moved to the progs folder..."
-		sleep 3
-	else
-		echo -e "\e[1;31m[!]\e[0m smbexeclient didn't install properly. Make sure you have prereqs installed..."
-		sleep 5
-	fi
-fi
-}
-
-##################################################
-f_compilewinexe(){
-
-if [ ! -d /tmp/smbexec-inst ]; then mkdir /tmp/smbexec-inst;fi
-
-if [ -e $path/progs/smbwinexe ]; then
-	echo -e "\n\e[1;32m[+]\e[0m Looks like smbwinexe is already compiled, finishing up..."
-	sleep 3
-else
-	echo -e "\n\e[1;34m[*]\e[0m Extracting winexe..."
-	sleep 2
-	tar -zxf $path/sources/winexe.tar.gz -C /tmp/smbexec-inst/
-	echo -e "\n\e[1;34m[*]\e[0m Checking for samba source..."
-		if [ ! -d /tmp/smbexec-inst/samba ]; then tar -zxf $path/sources/samba.tar.gz -C /tmp/smbexec-inst/ > /dev/null 2>&1; fi
-	echo -e "\n\e[1;34m[*]\e[0m Compiling smbwinexe, this may take a while..."
-	sleep 2
-	cd /tmp/smbexec-inst/winexe/source && ./waf -j8 configure --samba-dir=../../samba  && ./waf -j8
-	cp /tmp/smbexec-inst/winexe/source/build/winexe-static $path/progs/smbwinexe
-	cd $path
-
-	if [ -e $path/progs/smbwinexe ]; then
-		echo -e "\n\e[1;32m[+]\e[0m smbwinexe has been compiled and moved to the progs folder..."
-		sleep 3
-	else
-		echo -e "\e[1;31m[!]\e[0m smbwinexe didn't install properly. Make sure you have prereqs installed..."
-		sleep 5
-	fi
-fi
-}
-
-##################################################
-f_compilebinaries(){
-path=$PWD
-echo -e "\nThis script will compile your smbexec binaries\nPress any key to continue"
-read
-if [ ! -e /tmp/smbexec-inst ]; then
- mkdir /tmp/smbexec-inst/
-fi
-f_compilesmbclient
-f_compilewinexe
-updatedb
-rm -rf /tmp/smbexec-inst/
-f_mainmenu
-}
-
-##################################################
 
 f_Banner(){
 echo "************************************************************"
@@ -404,18 +322,15 @@ f_Banner
 	echo "Please choose your OS to install smbexec"
 	echo "1.  Debian/Ubuntu and derivatives"
 	echo "2.  Red Hat or Fedora"
-	echo "3.  Microsoft Windows"
-	echo "4.  Compile smbexec binaries"
-	echo "5.  Exit"
+	echo "3.  Exit"
 	echo
 	read -p "Choice: " mainchoice
 
 	case $mainchoice in
 	1) f_debian ;;
 	2) f_rhfedora ;;
-	3) f_microsoft ;;
-	4) f_compilebinaries ;;
-	*) clear;exit ;;
+	3) clear;exit ;;
+	*) f_mainmenu ;;
 	esac
 
 }
